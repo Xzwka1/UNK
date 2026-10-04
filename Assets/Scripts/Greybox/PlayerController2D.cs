@@ -17,13 +17,17 @@ public class PlayerController2D : MonoBehaviour
 
     // ------------------------------------------------------------------ Inspector
     [Header("Run (world units / second)")]
-    [SerializeField] private float maxSpeed = 8f;
+    [SerializeField] private float maxSpeed = 9f;
     [Tooltip("Seconds from 0 to max speed.")]
-    [SerializeField] private float accelerationTime = 0.04f;
+    [SerializeField] private float accelerationTime = 0.08f;
     [Tooltip("Seconds from max speed to a full stop (high friction, no sliding).")]
-    [SerializeField] private float decelerationTime = 0.02f;
+    [SerializeField] private float decelerationTime = 0.06f;
     [Tooltip("Reversing direction in mid-air flips the speed instantly instead of braking first.")]
     [SerializeField] private bool instantAirTurn = true;
+    [Tooltip("Seconds from 0 to max speed while airborne (Celeste-style: slightly softer than the ground).")]
+    [SerializeField] private float airAccelerationTime = 0.1f;
+    [Tooltip("Seconds from max speed to a stop while airborne when no key is held (keeps momentum).")]
+    [SerializeField] private float airDecelerationTime = 0.25f;
 
     [Header("Gravity")]
     [SerializeField] private float baseGravityScale = 3f;
@@ -32,24 +36,28 @@ public class PlayerController2D : MonoBehaviour
     [Tooltip("Gravity multiplier while rising with the jump button released (variable jump height).")]
     [SerializeField] private float lowJumpGravityMultiplier = 3f;
     [SerializeField] private float maxFallSpeed = 24f;
+    [Tooltip("Near the jump apex (while holding jump) gravity is multiplied by this, for a floaty hang.")]
+    [SerializeField] private float apexGravityMultiplier = 0.5f;
+    [Tooltip("Vertical speed below which the apex bonus applies.")]
+    [SerializeField] private float apexThreshold = 2f;
 
     [Header("Jump")]
     [Tooltip("Height reached when the jump button is held for the whole ascent.")]
-    [SerializeField] private float jumpHeight = 3f;
+    [SerializeField] private float jumpHeight = 3.2f;
     [SerializeField] private float airJumpHeight = 2.5f;
     [Tooltip("Air jumps per airtime. Refilled ONLY on the ground (never on walls).")]
     [SerializeField] private int maxAirJumps = 1;
 
     [Header("Dash (Shift + WASD)")]
-    [SerializeField] private float dashSpeed = 22f;
+    [SerializeField] private float dashSpeed = 24f;
     [SerializeField] private float dashDuration = 0.15f;
     [Tooltip("Freeze frame right before the dash force is applied (0.025 - 0.05 s).")]
-    [SerializeField, Range(0.025f, 0.05f)] private float dashFreezeDuration = 0.04f;
+    [SerializeField, Range(0.025f, 0.05f)] private float dashFreezeDuration = 0.05f;
     [Tooltip("Dashes per airtime. Refilled on the ground.")]
     [SerializeField] private int maxDashes = 1;
     [SerializeField] private float dashCooldown = 0.2f;
     [Tooltip("Fraction of the dash speed kept after the dash ends.")]
-    [SerializeField, Range(0f, 1f)] private float dashExitSpeedMultiplier = 0.35f;
+    [SerializeField, Range(0f, 1f)] private float dashExitSpeedMultiplier = 0.6f;
     [Tooltip("Re-read WASD when the freeze ends so slightly late diagonals still count.")]
     [SerializeField] private bool resampleDirectionAfterFreeze = true;
 
@@ -248,6 +256,9 @@ public class PlayerController2D : MonoBehaviour
             else if (vel.y > 0f && jumpRising && !input.JumpHeld) scale *= lowJumpGravityMultiplier;
             if (vel.y <= 0f) jumpRising = false;
 
+            if (!grounded && Mathf.Abs(vel.y) < apexThreshold && input.JumpHeld)
+                scale *= apexGravityMultiplier; // floaty apex
+
             rb.gravityScale = scale;
             vel.y = Mathf.Max(vel.y, -maxFallSpeed);
 
@@ -261,18 +272,23 @@ public class PlayerController2D : MonoBehaviour
         rb.linearVelocity = vel;
     }
 
-    private float ComputeHorizontal(float vx, float h, float dt)
+private float ComputeHorizontal(float vx, float h, float dt)
     {
+        float accelTime = grounded ? accelerationTime : airAccelerationTime;
+        float decelTime = grounded ? decelerationTime : airDecelerationTime;
+
         if (h != 0f)
         {
             if (instantAirTurn && !grounded && Mathf.Abs(vx) > 0.01f && Mathf.Sign(vx) != h)
                 vx = h * Mathf.Abs(vx);
 
-            float accel = maxSpeed / Mathf.Max(accelerationTime, 0.0001f);
-            return Mathf.MoveTowards(vx, h * maxSpeed, accel * dt);
+            // Over max speed (e.g. after a dash): shed it gently instead of snapping to maxSpeed.
+            bool overSpeed = Mathf.Abs(vx) > maxSpeed && Mathf.Sign(vx) == h;
+            float rate = maxSpeed / Mathf.Max(overSpeed ? decelTime : accelTime, 0.0001f);
+            return Mathf.MoveTowards(vx, h * maxSpeed, rate * dt);
         }
 
-        float decel = maxSpeed / Mathf.Max(decelerationTime, 0.0001f);
+        float decel = maxSpeed / Mathf.Max(decelTime, 0.0001f);
         return Mathf.MoveTowards(vx, 0f, decel * dt);
     }
 

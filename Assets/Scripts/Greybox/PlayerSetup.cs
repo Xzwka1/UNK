@@ -8,8 +8,9 @@ using UnityEngine;
 ///  - creates a simple grey/blue "Visual" rectangle.
 /// Runs in Reset (when added), Awake, and from the context menu "Apply Setup".
 /// </summary>
-[RequireComponent(typeof(Rigidbody2D), typeof(CapsuleCollider2D), typeof(PlayerController2D),
-                  typeof(PlayerStress), typeof(PlayerRespawn))]
+// RequireComponent accepts max 3 types; Rigidbody2D, CapsuleCollider2D and PlayerStress
+// are pulled in by PlayerController2D / PlayerRespawn.
+[RequireComponent(typeof(PlayerController2D), typeof(PlayerRespawn))]
 public class PlayerSetup : MonoBehaviour
 {
     [Header("Pixel logic")]
