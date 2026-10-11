@@ -14,10 +14,12 @@ flowchart TB
     subgraph SUB_PLAYER ["2. Player Core & Physics"]
         P_Setup["PlayerSetup\n(Auto-wires Rigidbody2D, Hitbox, Visuals)"]
         P_Ctrl["PlayerController2D\n(Velocity-driven Movement & FSM)"]
+        P_Assists["AssistsLogic\n(Pure C# Helpers: Coyote, Buffer, Corner Correction)"]
         P_Hurtbox["PlayerHurtbox\n(Child Trigger Collider for Hazards)"]
 
         P_Setup -->|Configures & Requires| P_Ctrl
         P_Setup -->|Spawns Child Object| P_Hurtbox
+        P_Ctrl --- P_Assists
         P_State -.->|Sampled in Update, applied in FixedUpdate| P_Ctrl
     end
 
@@ -84,7 +86,7 @@ flowchart TB
     classDef toolStyle fill:#334155,stroke:#64748b,stroke-width:1px,color:#f8fafc;
 
     class P_Input,P_State inputStyle;
-    class P_Setup,P_Ctrl,P_Hurtbox playerStyle;
+    class P_Setup,P_Ctrl,P_Assists,P_Hurtbox playerStyle;
     class P_Stress,P_Respawn lifeStyle;
     class Cam_Ctrl,Cam_FX camStyle;
     class Hazard,Platform envStyle;

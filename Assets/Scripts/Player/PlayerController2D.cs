@@ -71,18 +71,7 @@ public class PlayerController2D : MonoBehaviour
     [SerializeField] private int maxWallJumps = 5;
 
     [Header("Control assists")]
-    [Tooltip("Jump still allowed this long after leaving a ledge.")]
-    [SerializeField, Range(0.08f, 0.12f)] private float coyoteTime = 0.1f;
-    [Tooltip("Wall-jump still allowed this long after leaving a wall.")]
-    [SerializeField] private float wallCoyoteTime = 0.08f;
-    [Tooltip("A jump pressed this long before landing fires on landing.")]
-    [SerializeField] private float jumpBufferTime = 0.12f;
-    [Tooltip("If the ground is closer than this while falling, a jump press is buffered for landing instead of burning the air jump.")]
-    [SerializeField] private float airJumpLandingBufferDistance = 0.6f;
-    [Tooltip("Max corner nudge in pixels (0 = off). Applied while dashing.")]
-    [SerializeField, Range(0, 8)] private int cornerCorrectionPixels = 4;
-    [Tooltip("Also nudge sideways when the head clips a ceiling corner during a jump.")]
-    [SerializeField] private bool cornerCorrectionOnJump = true;
+    [SerializeField] private AssistsLogic assists = new AssistsLogic();
 
     [Header("Environment checks")]
     [Tooltip("Layers that count as ground / walls. Triggers are always ignored.")]
@@ -98,7 +87,6 @@ public class PlayerController2D : MonoBehaviour
 
     private ContactFilter2D filter;
     private readonly Collider2D[] hits = new Collider2D[8];
-    private const float CornerSkin = 0.02f; // shrinks overlap tests so resting contact is not "blocked"
 
     private MoveState state = MoveState.Normal;
     private bool controlEnabled = true;
@@ -109,7 +97,6 @@ public class PlayerController2D : MonoBehaviour
     private bool grounded, gripping, jumpRising;
     private int wallSide, lastWallSide, facing = 1;
 
-    private float coyoteTimer, wallCoyoteTimer, jumpBufferTimer;
     private float dashFreezeTimer, dashTimer, dashCooldownTimer, wallJumpLockTimer;
     private int airJumpsLeft, dashesLeft, wallJumpsUsed;
     private Vector2 dashDir;
@@ -120,6 +107,7 @@ public class PlayerController2D : MonoBehaviour
     public int WallSide => wallSide;
     public int Facing => facing;
     public MoveState State => state;
+    public AssistsLogic Assists => assists;
 
     // ------------------------------------------------------------------ Lifecycle
     private void Awake()
@@ -160,7 +148,7 @@ public class PlayerController2D : MonoBehaviour
         bool jumpPress = jumpPressLatch;
         bool dashPress = dashPressLatch;
         jumpPressLatch = dashPressLatch = false;
-        if (jumpPress) jumpBufferTimer = jumpBufferTime;
+        if (jumpPress) assists.BufferJump();
 
         switch (state)
         {
@@ -185,7 +173,7 @@ public class PlayerController2D : MonoBehaviour
     public void ResetState()
     {
         state = MoveState.Normal;
-        coyoteTimer = wallCoyoteTimer = jumpBufferTimer = 0f;
+        assists.ResetTimers();
         dashFreezeTimer = dashTimer = dashCooldownTimer = wallJumpLockTimer = 0f;
         airJumpsLeft = maxAirJumps;
         dashesLeft = maxDashes;
@@ -217,9 +205,9 @@ public class PlayerController2D : MonoBehaviour
         gripping = input.GripHeld && wallSide != 0 && wallJumpLockTimer <= 0f;
 
         // --- Jumps (ground / wall / air). The buffer lets a press fire up to jumpBufferTime later.
-        if (jumpBufferTimer > 0f && TryJump(ref vel, jumpPress, h))
+        if (assists.HasBufferedJump && TryJump(ref vel, jumpPress, h))
         {
-            jumpBufferTimer = 0f;
+            assists.ConsumeJumpBuffer();
             gripping = false;
         }
 
@@ -266,8 +254,8 @@ public class PlayerController2D : MonoBehaviour
         }
 
         // --- Head clipping a ceiling corner while rising
-        if (cornerCorrectionOnJump && !gripping && vel.y > 0.1f)
-            CornerCorrect(vel, dt, false, true);
+        if (assists.CornerCorrectionOnJump && !gripping && vel.y > 0.1f)
+            assists.CornerCorrect(rb, col, filter, vel, dt, pixelsPerUnit, false, true);
 
         rb.linearVelocity = vel;
     }
@@ -297,22 +285,22 @@ private float ComputeHorizontal(float vx, float h, float dt)
     private bool TryJump(ref Vector2 vel, bool freshPress, float h)
     {
         // 1) Ground jump (includes coyote time).
-        if (coyoteTimer > 0f)
+        if (assists.CanCoyoteJump)
         {
             vel.y = VelocityForHeight(jumpHeight);
-            coyoteTimer = 0f;
+            assists.ConsumeCoyote();
             jumpRising = true;
             return true;
         }
 
         // 2) Wall-jump: Ctrl released + direction AWAY from the wall + jump.
-        if (wallCoyoteTimer > 0f && lastWallSide != 0 && !input.GripHeld
+        if (assists.CanWallCoyoteJump && lastWallSide != 0 && !input.GripHeld
             && h == -lastWallSide && wallJumpsUsed < maxWallJumps)
         {
             vel = new Vector2(-lastWallSide * wallJumpSpeedX, VelocityForHeight(wallJumpHeight));
             facing = -lastWallSide;
             wallJumpsUsed++;
-            wallCoyoteTimer = 0f;
+            assists.ConsumeWallCoyote();
             wallJumpLockTimer = wallJumpControlLock;
             jumpRising = true;
             stress.Add(stress.wallJumpCost); // +20 % per wall-jump
@@ -323,7 +311,7 @@ private float ComputeHorizontal(float vx, float h, float dt)
         if (freshPress && airJumpsLeft > 0 && !gripping)
         {
             // Landing soon? Keep the press buffered for a ground jump instead of wasting the air jump.
-            if (vel.y <= 0f && GroundWithin(airJumpLandingBufferDistance)) return false;
+            if (vel.y <= 0f && assists.IsGroundWithinLandingBuffer(col, filter, rb)) return false;
 
             vel.y = VelocityForHeight(airJumpHeight);
             airJumpsLeft--;
@@ -353,7 +341,7 @@ private float ComputeHorizontal(float vx, float h, float dt)
 
         gripping = false;
         jumpRising = false;
-        coyoteTimer = 0f;
+        assists.ConsumeCoyote();
         wallJumpLockTimer = 0f;
 
         rb.linearVelocity = Vector2.zero;
@@ -382,7 +370,7 @@ private float ComputeHorizontal(float vx, float h, float dt)
         rb.gravityScale = 0f;
 
         Vector2 v = dashDir * dashSpeed;
-        CornerCorrect(v, dt, true, true);
+        assists.CornerCorrect(rb, col, filter, v, dt, pixelsPerUnit, true, true);
         rb.linearVelocity = v; // re-applied each step so collisions never bleed the dash speed
 
         dashTimer -= dt;
@@ -414,38 +402,17 @@ private float ComputeHorizontal(float vx, float h, float dt)
 
     private void TickTimers(float dt)
     {
+        assists.Tick(dt, grounded, wallSide, ref lastWallSide);
+
         if (grounded)
         {
-            coyoteTimer = coyoteTime;
             airJumpsLeft = maxAirJumps;   // refills ONLY on the ground
             wallJumpsUsed = 0;
             if (state == MoveState.Normal && dashCooldownTimer <= 0f) dashesLeft = maxDashes;
         }
-        else
-        {
-            coyoteTimer = Mathf.Max(0f, coyoteTimer - dt);
-        }
 
-        if (wallSide != 0)
-        {
-            lastWallSide = wallSide;
-            wallCoyoteTimer = wallCoyoteTime;
-        }
-        else
-        {
-            wallCoyoteTimer = Mathf.Max(0f, wallCoyoteTimer - dt);
-        }
-
-        jumpBufferTimer = Mathf.Max(0f, jumpBufferTimer - dt);
         dashCooldownTimer = Mathf.Max(0f, dashCooldownTimer - dt);
         wallJumpLockTimer = Mathf.Max(0f, wallJumpLockTimer - dt);
-    }
-
-    private bool GroundWithin(float distance)
-    {
-        Bounds b = col.bounds;
-        Vector2 center = new Vector2(b.center.x, b.min.y - distance * 0.5f);
-        return BoxHit(center, new Vector2(b.size.x * 0.9f, distance));
     }
 
     private bool BoxHit(Vector2 center, Vector2 size)
@@ -453,62 +420,6 @@ private float ComputeHorizontal(float vx, float h, float dt)
         int n = Physics2D.OverlapBox(center, size, 0f, filter, hits);
         for (int i = 0; i < n; i++)
             if (hits[i].attachedRigidbody != rb) return true; // ignore our own collider
-        return false;
-    }
-
-    // ------------------------------------------------------------------ Corner correction
-    /// <summary>
-    /// If the next step would be blocked by a corner that overlaps us by 1..cornerCorrectionPixels pixels,
-    /// nudge the body sideways/up/down so it slips past without losing momentum.
-    /// </summary>
-    private void CornerCorrect(Vector2 vel, float dt, bool horizontal, bool vertical)
-    {
-        if (cornerCorrectionPixels <= 0) return;
-
-        float px = 1f / Mathf.Max(1f, pixelsPerUnit);
-        Vector2 pos = rb.position;
-        Vector2 step = vel * dt;
-
-        if (horizontal && Mathf.Abs(step.x) > 0.0001f)
-        {
-            Vector2 move = new Vector2(step.x, 0f);
-            if (BlockedAt(pos + move) && TryNudge(pos, move, Vector2.up, px)) return;
-        }
-
-        if (vertical && Mathf.Abs(step.y) > 0.0001f)
-        {
-            Vector2 move = new Vector2(0f, step.y);
-            if (BlockedAt(pos + move)) TryNudge(pos, move, Vector2.right, px);
-        }
-    }
-
-    /// <summary>Searches 1..N pixel offsets along 'axis' (both directions) for one that clears the obstacle.</summary>
-    private bool TryNudge(Vector2 pos, Vector2 move, Vector2 axis, float px)
-    {
-        for (int k = 1; k <= cornerCorrectionPixels; k++)
-        {
-            for (int s = 1; s >= -1; s -= 2)
-            {
-                Vector2 offset = axis * (s * k * px);
-                if (!BlockedAt(pos + offset) && !BlockedAt(pos + offset + move))
-                {
-                    rb.position = pos + offset;
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private bool BlockedAt(Vector2 bodyPosition)
-    {
-        Vector3 s = transform.lossyScale;
-        Vector2 size = new Vector2(col.size.x * Mathf.Abs(s.x), col.size.y * Mathf.Abs(s.y)) - Vector2.one * CornerSkin;
-        Vector2 center = bodyPosition + new Vector2(col.offset.x * s.x, col.offset.y * s.y);
-
-        int n = Physics2D.OverlapCapsule(center, size, col.direction, 0f, filter, hits);
-        for (int i = 0; i < n; i++)
-            if (hits[i].attachedRigidbody != rb) return true;
         return false;
     }
 }
