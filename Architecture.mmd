@@ -1,0 +1,91 @@
+flowchart TB
+    %% ========================================================
+    %% 1. INPUT LAYER
+    %% ========================================================
+    subgraph SUB_INPUT ["1. Input Layer"]
+        P_Input["PlayerInputReader\n(Static / Cross-Input System & Manager)"]
+        P_State[/"PlayerInputState\n(Immutable Struct: Move, Jump, Dash, Grip)"/]
+        P_Input -->|Reads hardware input| P_State
+    end
+
+    %% ========================================================
+    %% 2. PLAYER CORE & MOVEMENT
+    %% ========================================================
+    subgraph SUB_PLAYER ["2. Player Core & Physics"]
+        P_Setup["PlayerSetup\n(Auto-wires Rigidbody2D, Hitbox, Visuals)"]
+        P_Ctrl["PlayerController2D\n(Velocity-driven Movement & FSM)"]
+        P_Hurtbox["PlayerHurtbox\n(Child Trigger Collider for Hazards)"]
+
+        P_Setup -->|Configures & Requires| P_Ctrl
+        P_Setup -->|Spawns Child Object| P_Hurtbox
+        P_State -.->|Sampled in Update, applied in FixedUpdate| P_Ctrl
+    end
+
+    %% ========================================================
+    %% 3. STRESS & LIFECYCLE
+    %% ========================================================
+    subgraph SUB_LIFECYCLE ["3. Stress & Lifecycle"]
+        P_Stress["PlayerStress\n(Stamina / Body Overload Meter: 0-100%)"]
+        P_Respawn["PlayerRespawn\n(Death Loop, Cooldown & Teleport)"]
+
+        P_Ctrl -->|Increases stress on Grip/Climb/Wall-Jump\nRecovers on Ground| P_Stress
+        P_Stress -->|Event: Overloaded (100%)| P_Respawn
+        P_Hurtbox -->|Trigger: Contact with Hazard| P_Respawn
+        P_Respawn -->|Disables / Enables Control & Simulation| P_Ctrl
+        P_Respawn -->|Resets Stress on Respawn| P_Stress
+    end
+
+    %% ========================================================
+    %% 4. CAMERA & SENSORY FEEDBACK
+    %% ========================================================
+    subgraph SUB_CAMERA ["4. Camera & Feedback System"]
+        Cam_Ctrl["CameraController2D\n(LateUpdate: Deadzone, Lookahead, Room Clamping)"]
+        Cam_FX["CameraEffects\n(Singleton: Screen Shake & Hit-Stop Freeze Frame)"]
+
+        Cam_Ctrl -->|Follows Target Transform| P_Ctrl
+        Cam_Ctrl -->|Adds Shake Offset to Final Position| Cam_FX
+        P_Respawn -.->|Event: Died (Heavy Shake + Freeze Frame)| Cam_FX
+        P_Respawn -.->|Event: Respawned (Snap Camera to Player)| Cam_Ctrl
+    end
+
+    %% ========================================================
+    %% 5. ENVIRONMENT & MECHANICS
+    %% ========================================================
+    subgraph SUB_ENV ["5. Gameplay & Environment"]
+        Hazard["Hazard2D\n(Marker Component: Spikes / Pit Triggers)"]
+        Platform["FragilePlatform\n(FSM: Normal -> Cracking -> Destroyed -> Reforming)"]
+
+        Hazard -.->|Overlap triggers Death| P_Hurtbox
+        Platform -->|Checks Player Standing / Gripping| P_Ctrl
+        Platform -.->|Heavy Landing Triggers Micro Shake| Cam_FX
+    end
+
+    %% ========================================================
+    %% 6. LEVEL PROTOTYPING & UTILITIES
+    %% ========================================================
+    subgraph SUB_TOOLS ["6. Level Generation & Prototyping Tools"]
+        Generator["GreyboxLevelGenerator\n(Procedural Test Track at Awake)"]
+        Sprites["GreyboxSprites\n(Runtime 1x1 White Square Sprite)"]
+
+        Generator -->|Assigns Spawn Point & Injects Player| P_Respawn
+        Generator -->|Builds Geometry & Kill Zones| Hazard
+        P_Setup -->|Uses Placeholder Square| Sprites
+        Generator -->|Uses Placeholder Square| Sprites
+    end
+
+    %% ========================================================
+    %% STYLING
+    %% ========================================================
+    classDef inputStyle fill:#2d3748,stroke:#4a5568,stroke-width:2px,color:#fff;
+    classDef playerStyle fill:#1a365d,stroke:#2b6cb0,stroke-width:2px,color:#fff;
+    classDef lifeStyle fill:#742a2a,stroke:#c53030,stroke-width:2px,color:#fff;
+    classDef camStyle fill:#234e52,stroke:#319795,stroke-width:2px,color:#fff;
+    classDef envStyle fill:#44337a,stroke:#805ad5,stroke-width:2px,color:#fff;
+    classDef toolStyle fill:#334155,stroke:#64748b,stroke-width:1px,color:#f8fafc;
+
+    class P_Input,P_State inputStyle;
+    class P_Setup,P_Ctrl,P_Hurtbox playerStyle;
+    class P_Stress,P_Respawn lifeStyle;
+    class Cam_Ctrl,Cam_FX camStyle;
+    class Hazard,Platform envStyle;
+    class Generator,Sprites toolStyle;
