@@ -1,14 +1,22 @@
 using UnityEngine;
 
 /// <summary>
-/// Precision-platformer player controller (Rigidbody2D, velocity driven).
+/// Precision-platformer player controller (Rigidbody2D, velocity driven) with the 3-stage "Fragility" system.
 ///
 /// Features: variable jump, 1 air jump (ground-reset only), 8-direction dash with freeze frame,
-/// Ctrl wall grip / climb / slide, wall-jump, stress feed, coyote time, jump buffering, corner correction.
+/// Ctrl wall grip / climb / slide, wall-jump, coyote time, jump buffering, corner correction.
+///
+/// FRAGILITY (see PlayerStress for the per-stage numbers). The current StressStage overrides:
+///   - ground deceleration time and air acceleration time (slipperiness / inertia),
+///   - wall hold-still slip speed, wall climb speed (disabled in Stage 3),
+///   - dash speed multiplier and air-jump height multiplier,
+///   - the stress cost of Dash / Double-Jump, heavy landings, and dashing into solid walls,
+///   - the active recovery while wall-sliding down (Stage 2 and 3).
+/// "Last Stand Dash": reaching 100 % stress during a dash does not kill immediately; the check happens in
+/// <see cref="OnDashEnd"/>.
 ///
 /// Input is sampled in Update and consumed in FixedUpdate (presses are latched so none are lost).
-/// NOTE: timers tick in fixed steps, so durations such as the dash freeze are quantised to Time.fixedDeltaTime
-/// (0.02 s by default). Lower the fixed timestep (e.g. 0.01) for finer control.
+/// NOTE: timers tick in fixed steps, so durations such as the dash freeze are quantised to Time.fixedDeltaTime.
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D), typeof(CapsuleCollider2D), typeof(PlayerStress))]
 public class PlayerController2D : MonoBehaviour
@@ -16,16 +24,11 @@ public class PlayerController2D : MonoBehaviour
     public enum MoveState { Normal, DashFreeze, Dashing }
 
     // ------------------------------------------------------------------ Inspector
+    // Stage-dependent values (ground decel, air accel, dash multiplier, ...) live on PlayerStress.
     [Header("Run (world units / second)")]
     [SerializeField] private float maxSpeed = 9f;
-    [Tooltip("Seconds from 0 to max speed.")]
+    [Tooltip("Seconds from 0 to max speed on the ground.")]
     [SerializeField] private float accelerationTime = 0.08f;
-    [Tooltip("Seconds from max speed to a full stop (high friction, no sliding).")]
-    [SerializeField] private float decelerationTime = 0.06f;
-    [Tooltip("Reversing direction in mid-air flips the speed instantly instead of braking first.")]
-    [SerializeField] private bool instantAirTurn = true;
-    [Tooltip("Seconds from 0 to max speed while airborne (Celeste-style: slightly softer than the ground).")]
-    [SerializeField] private float airAccelerationTime = 0.1f;
     [Tooltip("Seconds from max speed to a stop while airborne when no key is held (keeps momentum).")]
     [SerializeField] private float airDecelerationTime = 0.25f;
 
@@ -44,11 +47,13 @@ public class PlayerController2D : MonoBehaviour
     [Header("Jump")]
     [Tooltip("Height reached when the jump button is held for the whole ascent.")]
     [SerializeField] private float jumpHeight = 3.2f;
+    [Tooltip("Base air-jump height (multiplied by the stage's air-jump multiplier).")]
     [SerializeField] private float airJumpHeight = 2.5f;
     [Tooltip("Air jumps per airtime. Refilled ONLY on the ground (never on walls).")]
     [SerializeField] private int maxAirJumps = 1;
 
     [Header("Dash (Shift + WASD)")]
+    [Tooltip("Base dash speed (multiplied by the stage's dash multiplier).")]
     [SerializeField] private float dashSpeed = 24f;
     [SerializeField] private float dashDuration = 0.15f;
     [Tooltip("Freeze frame right before the dash force is applied (0.025 - 0.05 s).")]
@@ -62,6 +67,7 @@ public class PlayerController2D : MonoBehaviour
     [SerializeField] private bool resampleDirectionAfterFreeze = true;
 
     [Header("Wall (hold Ctrl to grip)")]
+    [Tooltip("Base climb speed (multiplied by the stage's climb multiplier; 0 in Stage 3).")]
     [SerializeField] private float climbSpeed = 3f;
     [SerializeField] private float slideSpeed = 4f;
     [SerializeField] private float wallJumpSpeedX = 9f;
@@ -69,6 +75,12 @@ public class PlayerController2D : MonoBehaviour
     [Tooltip("Horizontal input is ignored this long after a wall-jump so the push-off is felt.")]
     [SerializeField] private float wallJumpControlLock = 0.12f;
     [SerializeField] private int maxWallJumps = 5;
+    [Tooltip("Minimum seconds between OnClimbBlocked events while holding W in Stage 3.")]
+    [SerializeField] private float climbBlockedFeedbackInterval = 0.4f;
+
+    [Header("Impact fragility")]
+    [Tooltip("Downward speed (units/s) at or above which a landing counts as a heavy landing.")]
+    [SerializeField] private float heavyLandingVelocityThreshold = 16f;
 
     [Header("Control assists")]
     [Tooltip("Jump still allowed this long after leaving a ledge.")]
@@ -106,20 +118,27 @@ public class PlayerController2D : MonoBehaviour
     private PlayerInputState input;
     private bool jumpPressLatch, dashPressLatch;
 
-    private bool grounded, gripping, jumpRising;
+    private bool grounded, groundIsSafe, gripping, jumpRising;
     private int wallSide, lastWallSide, facing = 1;
 
     private float coyoteTimer, wallCoyoteTimer, jumpBufferTimer;
     private float dashFreezeTimer, dashTimer, dashCooldownTimer, wallJumpLockTimer;
     private int airJumpsLeft, dashesLeft, wallJumpsUsed;
     private Vector2 dashDir;
+    private float currentDashSpeed;       // dashSpeed x the stage multiplier captured when the dash began
+    private bool brokeBarrierThisDash;
+    private float lastVelocityY;          // vertical velocity we commanded last step = speed just before an impact
+    private float climbBlockedTimer;
 
     // ------------------------------------------------------------------ Public read-only info
     public bool IsGrounded => grounded;
     public bool IsGripping => gripping;
+    /// <summary>True from the dash button press (freeze frame) until the dash ends.</summary>
+    public bool IsDashing => state != MoveState.Normal;
     public int WallSide => wallSide;
     public int Facing => facing;
     public MoveState State => state;
+    public StressStage Stage => stress != null ? stress.Stage : StressStage.Stage1_Stable;
 
     // ------------------------------------------------------------------ Lifecycle
     private void Awake()
@@ -168,6 +187,9 @@ public class PlayerController2D : MonoBehaviour
             case MoveState.Dashing: TickDashing(dt); break;
             default: TickNormal(vel, dt, jumpPress, dashPress); break;
         }
+
+        // Remember what we commanded: OnCollisionEnter2D runs after the physics step, when the speed is already gone.
+        if (controlEnabled) lastVelocityY = rb.linearVelocity.y;
     }
 
     // ------------------------------------------------------------------ Public control API (used by PlayerRespawn)
@@ -191,6 +213,9 @@ public class PlayerController2D : MonoBehaviour
         dashesLeft = maxDashes;
         wallJumpsUsed = 0;
         gripping = jumpRising = false;
+        brokeBarrierThisDash = false;
+        lastVelocityY = 0f;
+        climbBlockedTimer = 0f;
         jumpPressLatch = dashPressLatch = false;
         input = default;
         if (rb != null)
@@ -200,11 +225,44 @@ public class PlayerController2D : MonoBehaviour
         }
     }
 
+    // ------------------------------------------------------------------ Impact fragility (collisions)
+    private void OnCollisionEnter2D(Collision2D c)
+    {
+        if (!controlEnabled || stress == null || stress.IsOverloaded) return;
+
+        // --- Solid Wall Dash Impact: only the active dash (after the freeze) counts.
+        if (state == MoveState.Dashing)
+        {
+            var barrier = c.collider.GetComponentInParent<BreakingBarrier>();
+            if (barrier != null)
+            {
+                // Smashing a barrier is free and makes the Last Stand Dash survivable.
+                brokeBarrierThisDash = true;
+                barrier.Break();
+                dashesLeft = Mathf.Min(maxDashes, dashesLeft + 1); // smashing a barrier refunds 1 dash
+            }
+            else
+            {
+                // Package puncture: bypasses the Last Stand deferral, so Stage 3 dies against the wall.
+                stress.Add(stress.Params.solidWallDashCost, true);
+            }
+            return; // a dash impact replaces the landing check below
+        }
+
+        // --- Heavy Landing Shatter: landing on top of something while falling past the threshold.
+        if (c.contactCount > 0 && c.GetContact(0).normal.y > 0.5f && lastVelocityY <= -heavyLandingVelocityThreshold)
+        {
+            stress.NotifyHardLanding();               // OnHardLandingImpact hook (every stage)
+            stress.Add(stress.Params.heavyLandingCost); // Stage 1: +0, Stage 2: +10, Stage 3: +20
+        }
+    }
+
     // ------------------------------------------------------------------ Normal movement
     private void TickNormal(Vector2 vel, float dt, bool jumpPress, bool dashPress)
     {
         float h = Mathf.Abs(input.Move.x) > 0.1f ? Mathf.Sign(input.Move.x) : 0f;
         if (h != 0f) facing = (int)h;
+        climbBlockedTimer = Mathf.Max(0f, climbBlockedTimer - dt);
 
         // --- Dash
         if (dashPress && dashesLeft > 0 && dashCooldownTimer <= 0f)
@@ -222,6 +280,7 @@ public class PlayerController2D : MonoBehaviour
             jumpBufferTimer = 0f;
             gripping = false;
         }
+        if (!controlEnabled) return; // an air-jump / wall-jump cost may have just overloaded us
 
         // --- Horizontal
         if (wallJumpLockTimer <= 0f)
@@ -232,22 +291,7 @@ public class PlayerController2D : MonoBehaviour
         {
             rb.gravityScale = 0f;
             jumpRising = false;
-            float v = input.Move.y;
-            if (v > 0f)
-            {
-                vel.y = climbSpeed;
-                stress.AddRate(stress.climbUpRate, dt);
-            }
-            else if (v < 0f)
-            {
-                vel.y = -slideSpeed;
-                stress.AddRate(stress.slideDownRate, dt);
-            }
-            else
-            {
-                vel.y = 0f;
-                stress.AddRate(stress.gripHoldRate, dt);
-            }
+            vel.y = ComputeGripVertical(dt);
         }
         else
         {
@@ -262,8 +306,10 @@ public class PlayerController2D : MonoBehaviour
             rb.gravityScale = scale;
             vel.y = Mathf.Max(vel.y, -maxFallSpeed);
 
-            if (grounded) stress.Recover(dt); // safe ground: -40 %/s
+            // Safe ground only: standing on a FragilePlatform gives no recovery.
+            if (grounded && groundIsSafe) stress.Recover(dt);
         }
+        if (!controlEnabled) return;
 
         // --- Head clipping a ceiling corner while rising
         if (cornerCorrectionOnJump && !gripping && vel.y > 0.1f)
@@ -272,16 +318,54 @@ public class PlayerController2D : MonoBehaviour
         rb.linearVelocity = vel;
     }
 
-private float ComputeHorizontal(float vx, float h, float dt)
+    /// <summary>
+    /// Vertical velocity + stress while gripping a wall, driven by the current stage:
+    ///   hold still: slips at the stage's wallHoldSlipSpeed (0 / 1.5 / 4) and gains stress,
+    ///   W: climbs at the stage's multiplier (100 % / 80 % / DISABLED -> slips and fires OnClimbBlocked),
+    ///   S: slides down; Stage 2/3 recover stress while doing so.
+    /// </summary>
+    private float ComputeGripVertical(float dt)
     {
-        float accelTime = grounded ? accelerationTime : airAccelerationTime;
-        float decelTime = grounded ? decelerationTime : airDecelerationTime;
+        StressStageParams p = stress.Params;
+        float v = input.Move.y;
+
+        if (v > 0f)
+        {
+            if (p.climbSpeedMultiplier > 0f)
+            {
+                stress.AddRate(p.climbStressRate, dt);
+                return climbSpeed * p.climbSpeedMultiplier;
+            }
+
+            // Stage 3: cannot climb. Treated as holding still (slip + hold stress) plus a fail-feedback hook.
+            if (climbBlockedTimer <= 0f)
+            {
+                stress.NotifyClimbBlocked();
+                climbBlockedTimer = climbBlockedFeedbackInterval;
+            }
+        }
+        else if (v < 0f)
+        {
+            stress.AddRate(p.wallSlideStressRate, dt); // negative in Stage 2/3 = active recovery
+            return -slideSpeed;
+        }
+
+        stress.AddRate(p.wallHoldStressRate, dt);
+        return -p.wallHoldSlipSpeed;
+    }
+
+    /// <summary>
+    /// Stage-aware horizontal movement. Ground stop time and air acceleration come from the stress stage:
+    /// higher stress = slipperier ground and more mid-air inertia.
+    /// </summary>
+    private float ComputeHorizontal(float vx, float h, float dt)
+    {
+        StressStageParams p = stress.Params;
+        float accelTime = grounded ? accelerationTime : p.airAccelTime;
+        float decelTime = grounded ? p.groundDecelTime : airDecelerationTime;
 
         if (h != 0f)
         {
-            if (instantAirTurn && !grounded && Mathf.Abs(vx) > 0.01f && Mathf.Sign(vx) != h)
-                vx = h * Mathf.Abs(vx);
-
             // Over max speed (e.g. after a dash): shed it gently instead of snapping to maxSpeed.
             bool overSpeed = Mathf.Abs(vx) > maxSpeed && Mathf.Sign(vx) == h;
             float rate = maxSpeed / Mathf.Max(overSpeed ? decelTime : accelTime, 0.0001f);
@@ -325,9 +409,12 @@ private float ComputeHorizontal(float vx, float h, float dt)
             // Landing soon? Keep the press buffered for a ground jump instead of wasting the air jump.
             if (vel.y <= 0f && GroundWithin(airJumpLandingBufferDistance)) return false;
 
-            vel.y = VelocityForHeight(airJumpHeight);
+            // Stage effects use the stage BEFORE this jump's cost: Stage 3 = 75 % height.
+            StressStageParams p = stress.Params;
+            vel.y = VelocityForHeight(airJumpHeight * p.airJumpHeightMultiplier);
             airJumpsLeft--;
             jumpRising = true;
+            stress.Add(p.dashAirJumpCost); // Stage 1: free, Stage 2: +10 %, Stage 3: +15 %
             return true;
         }
 
@@ -347,6 +434,11 @@ private float ComputeHorizontal(float vx, float h, float dt)
         if (dir == Vector2.zero) dir = new Vector2(facing, 0f);
         dashDir = dir.normalized;
 
+        // Stage multiplier is captured BEFORE the dash cost, so a 90 % player gets the full 1.25x "Shatter-Boost".
+        StressStageParams p = stress.Params;
+        currentDashSpeed = dashSpeed * p.dashMultiplier;
+        brokeBarrierThisDash = false;
+
         dashesLeft--;
         state = MoveState.DashFreeze;
         dashFreezeTimer = dashFreezeDuration;
@@ -358,6 +450,10 @@ private float ComputeHorizontal(float vx, float h, float dt)
 
         rb.linearVelocity = Vector2.zero;
         rb.gravityScale = 0f;
+
+        // Last Stand Dash: postpone the 100 % death check until OnDashEnd, then pay the stage's dash cost.
+        stress.BeginOverloadDefer();
+        stress.Add(p.dashAirJumpCost); // Stage 1: free, Stage 2: +10 %, Stage 3: +15 %
     }
 
     private void TickDashFreeze()
@@ -374,14 +470,14 @@ private float ComputeHorizontal(float vx, float h, float dt)
 
         state = MoveState.Dashing;
         dashTimer = dashDuration;
-        rb.linearVelocity = dashDir * dashSpeed;
+        rb.linearVelocity = dashDir * currentDashSpeed;
     }
 
     private void TickDashing(float dt)
     {
         rb.gravityScale = 0f;
 
-        Vector2 v = dashDir * dashSpeed;
+        Vector2 v = dashDir * currentDashSpeed;
         CornerCorrect(v, dt, true, true);
         rb.linearVelocity = v; // re-applied each step so collisions never bleed the dash speed
 
@@ -390,7 +486,21 @@ private float ComputeHorizontal(float vx, float h, float dt)
 
         state = MoveState.Normal;
         dashCooldownTimer = dashCooldown;
-        rb.linearVelocity = dashDir * dashSpeed * dashExitSpeedMultiplier;
+        rb.linearVelocity = dashDir * currentDashSpeed * dashExitSpeedMultiplier;
+        OnDashEnd();
+    }
+
+    /// <summary>
+    /// Last Stand Dash resolution, called on the exact step the dash ends. If stress hit 100 % during the dash:
+    ///   touching safe ground, gripping a wall, or having broken a BreakingBarrier -> clamp to 95 % and live,
+    ///   still airborne in empty space -> Body Overload death right now.
+    /// </summary>
+    private void OnDashEnd()
+    {
+        bool onSafeGround = grounded && groundIsSafe;
+        bool wallSliding = wallSide != 0 && input.GripHeld;
+        bool survive = onSafeGround || wallSliding || brokeBarrierThisDash;
+        stress.ResolveOverloadDefer(survive);
     }
 
     // ------------------------------------------------------------------ Environment sensing & timers
@@ -400,9 +510,17 @@ private float ComputeHorizontal(float vx, float h, float dt)
         Vector2 c = b.center;
         Vector2 e = b.extents;
 
-        // Ground: thin box under the feet.
+        // Ground: thin box under the feet. Also records whether any of it is safe (not a FragilePlatform).
         Vector2 groundCenter = new Vector2(c.x, c.y - e.y - checkDistance * 0.5f);
-        bool touchingGround = BoxHit(groundCenter, new Vector2(b.size.x * 0.9f, checkDistance));
+        int n = Physics2D.OverlapBox(groundCenter, new Vector2(b.size.x * 0.9f, checkDistance), 0f, filter, hits);
+        bool touchingGround = false;
+        groundIsSafe = false;
+        for (int i = 0; i < n; i++)
+        {
+            if (hits[i].attachedRigidbody == rb) continue; // ignore our own collider
+            touchingGround = true;
+            if (hits[i].GetComponentInParent<FragilePlatform>() == null) groundIsSafe = true;
+        }
         grounded = touchingGround && vel.y <= 0.1f; // rising = not grounded (prevents refills right after a jump)
 
         // Walls: thin boxes beside the straight part of the capsule.
