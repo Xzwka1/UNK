@@ -1,253 +1,402 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
 
-/// <summary>The three physical states of the slime body. Body Overload (100 %) is handled separately as death.</summary>
+/// <summary>
+/// Dual-Polarity Stress States (-100% Brittle Crystal <-> 0% Equilibrium <-> +100% Tensile Liquid)
+/// </summary>
 public enum StressStage
 {
-    Stage1_Stable,    // 0   - 49.9 %
-    Stage2_Strained,  // 50  - 79.9 %
-    Stage3_Critical   // 80  - 99.9 %
+    Critical_Brittle,   // -80% to -99.9% (Critical Crystallization)
+    Strained_Brittle,   // -50% to -79.9%
+    Stable,             // -49.9% to +49.9%
+    Strained_Tensile,   // +50% to +79.9%
+    Critical_Tensile,   // +80% to +99.9% (Critical Meltdown)
+    
+    // Legacy aliases for backward compatibility if any external script references them
+    Stage1_Stable = Stable,
+    Stage2_Strained = Strained_Tensile,
+    Stage3_Critical = Critical_Tensile
 }
 
 /// <summary>
-/// Every number the designer can tune for ONE stress stage. Edit them in the Inspector on PlayerStress.
-/// Percent values are "% of the 0-100 stress bar"; multipliers are plain factors (1 = unchanged).
-/// </summary>
-[Serializable]
-public struct StressStageParams
-{
-    [Header("Movement physics")]
-    [Tooltip("Seconds from max speed to a full stop on the ground (higher = more slippery).")]
-    public float groundDecelTime;
-    [Tooltip("Seconds from 0 to max speed when steering left/right in mid-air (higher = more inertia).")]
-    public float airAccelTime;
-    [Tooltip("Downward speed (units/s, positive number) while gripping a wall WITHOUT pressing W/S. 0 = sticks still.")]
-    public float wallHoldSlipSpeed;
-    [Tooltip("Stress gained per second while gripping a wall without pressing W/S.")]
-    public float wallHoldStressRate;
-
-    [Header("Wall climb (Ctrl + W)")]
-    [Tooltip("Fraction of the base climb speed. 0 = climbing disabled (the player slips instead).")]
-    public float climbSpeedMultiplier;
-    [Tooltip("Stress gained per second while climbing up.")]
-    public float climbStressRate;
-
-    [Header("Wall slide (Ctrl + S)")]
-    [Tooltip("Stress change per second while sliding down. NEGATIVE = active recovery (compresses the slime).")]
-    public float wallSlideStressRate;
-
-    [Header("Air actions")]
-    [Tooltip("Multiplier on dash speed (and therefore distance, as the duration is fixed).")]
-    public float dashMultiplier;
-    [Tooltip("Multiplier on air-jump height.")]
-    public float airJumpHeightMultiplier;
-    [Tooltip("Stress added immediately by each Dash or Double-Jump.")]
-    public float dashAirJumpCost;
-
-    [Header("Impact fragility")]
-    [Tooltip("Stress added when landing faster than the heavy-landing velocity threshold.")]
-    public float heavyLandingCost;
-    [Tooltip("Stress added when dashing into a solid wall (anything that is not a BreakingBarrier).")]
-    public float solidWallDashCost;
-
-    // ---- Designer baselines (the values from the design document) ----
-    public static StressStageParams Stable => new StressStageParams
-    {
-        groundDecelTime = 0.02f, airAccelTime = 0.04f,
-        wallHoldSlipSpeed = 0f, wallHoldStressRate = 20f,
-        climbSpeedMultiplier = 1f, climbStressRate = 35f,
-        wallSlideStressRate = 0f,
-        dashMultiplier = 1f, airJumpHeightMultiplier = 1f, dashAirJumpCost = 0f,
-        heavyLandingCost = 0f, solidWallDashCost = 0f
-    };
-
-    public static StressStageParams Strained => new StressStageParams
-    {
-        groundDecelTime = 0.12f, airAccelTime = 0.08f,
-        wallHoldSlipSpeed = 1.5f, wallHoldStressRate = 20f,
-        climbSpeedMultiplier = 0.8f, climbStressRate = 35f,
-        wallSlideStressRate = -15f,
-        dashMultiplier = 1.10f, airJumpHeightMultiplier = 1f, dashAirJumpCost = 10f,
-        heavyLandingCost = 10f, solidWallDashCost = 10f
-    };
-
-    public static StressStageParams Critical => new StressStageParams
-    {
-        groundDecelTime = 0.22f, airAccelTime = 0.12f,
-        wallHoldSlipSpeed = 4f, wallHoldStressRate = 20f,
-        climbSpeedMultiplier = 0f, climbStressRate = 35f,
-        wallSlideStressRate = -15f,
-        dashMultiplier = 1.25f, airJumpHeightMultiplier = 0.75f, dashAirJumpCost = 15f,
-        heavyLandingCost = 20f, solidWallDashCost = 20f
-    };
-}
-
-/// <summary>
-/// Stress / body-overload meter (0..100 %) and the 3-stage fragility model built on top of it.
-///
-/// STAGE TRANSITIONS (evaluated live from the current value):
-///   0 - 49.9 % -> Stage1_Stable   |   50 - 79.9 % -> Stage2_Strained   |   80 - 99.9 % -> Stage3_Critical
-///   100 %      -> Body Overload (death), EXCEPT during the "Last Stand Dash" (see below).
-///
-/// LAST STAND DASH: PlayerController2D calls <see cref="BeginOverloadDefer"/> when a dash starts. While deferred,
-/// reaching 100 % does NOT fire <see cref="Overloaded"/>; the controller resolves it when the dash ends via
-/// <see cref="ResolveOverloadDefer"/> (survive -> clamp to 95 %, otherwise die). Hard impacts bypass the deferral.
-///
-/// This class owns only the value, the stage lookup and the events; PlayerController2D decides WHEN costs apply.
+/// The Fragile Equilibrium (ระบบความเปราะบาง 2 ขั้ว: -100% ถึง +100%).
+///  - ขั้วบวก (+1% ถึง +100%): สภาวะเหลว/ฉีกยืด (Tensile State)
+///  - ขั้วลบ (-1% ถึง -100%): สภาวะแข็งกรอบเป็นผลึกแก้ว (Brittle State)
+///  - จุดสมดุล: 0%
 /// </summary>
 public class PlayerStress : MonoBehaviour
 {
-    [Header("Stage thresholds (% stress at which a stage begins)")]
-    [SerializeField] private float stage2Threshold = 50f;
-    [SerializeField] private float stage3Threshold = 80f;
+    // ------------------------------------------------------------------ Inspector: Thresholds & Recovery
+    [Header("Dual-Polarity Thresholds (%)")]
+    [SerializeField] private float minStress = -100f;
+    [SerializeField] private float maxStress = 100f;
+    [Tooltip("Threshold where Strained state begins (±50%) and Polarity Snap becomes armed.")]
+    [SerializeField] private float strainedThreshold = 50f;
+    [Tooltip("Threshold where Critical Lockouts begin (±80%).")]
+    [SerializeField] private float criticalThreshold = 80f;
 
-    [Header("Per-stage parameters")]
-    [SerializeField] private StressStageParams stage1 = StressStageParams.Stable;
-    [SerializeField] private StressStageParams stage2 = StressStageParams.Strained;
-    [SerializeField] private StressStageParams stage3 = StressStageParams.Critical;
+    [Header("Safe Ground Recovery")]
+    [Tooltip("Rate at which currentStress moves toward 0f when standing on safe ground (10f / sec).")]
+    [SerializeField] private float safeGroundRecoveryRate = 10f;
 
-    [Header("Shared rules")]
-    [Tooltip("Recovery per second while standing on safe (non-FragilePlatform) ground.")]
-    public float groundRecoveryRate = 40f;
-    [Tooltip("Instant cost of a wall-jump (max count is set on the controller).")]
-    public float wallJumpCost = 20f;
-    [Tooltip("Stress the player is clamped to when a Last Stand Dash is survived.")]
-    [SerializeField, Range(0f, 99.9f)] private float lastStandSurvivalStress = 95f;
+    // ------------------------------------------------------------------ Inspector: Action Modifiers (+)
+    [Header("Positive Modifiers (+ Tensile / Liquid)")]
+    [Tooltip("Normal 8-Direction Dash stress cost (+25f).")]
+    [SerializeField] private float normalDashStress = 25f;
+    [Tooltip("Thermal Shock Dash cost when dashing while currentStress < 0f (+35f).")]
+    [SerializeField] private float thermalShockDashStress = 35f;
+    [Tooltip("Emergency 2nd Air Dash stress cost (+45f).")]
+    [SerializeField] private float emergencyAirDashStress = 45f;
+    [Tooltip("Double-Jump (Air Jump) stress cost (+20f).")]
+    [SerializeField] private float doubleJumpStress = 20f;
+    [Tooltip("Wall-Climb Up continuous stress rate per second (+30f/s).")]
+    [SerializeField] private float wallClimbUpStressRate = 30f;
 
-    [Header("Runtime value")]
-    [SerializeField, Range(0f, 100f)] private float current;
+    // ------------------------------------------------------------------ Inspector: Action Modifiers (-)
+    [Header("Negative Modifiers (- Brittle / Crystal)")]
+    [Tooltip("Wall Hold Still continuous stress rate per second (-25f/s).")]
+    [SerializeField] private float wallHoldStillStressRate = -25f;
+    [Tooltip("Wall Slide Down continuous stress rate per second (-35f/s).")]
+    [SerializeField] private float wallSlideDownStressRate = -35f;
+    [Tooltip("Wall-Jump instant stress change (-20f).")]
+    [SerializeField] private float wallJumpStress = -20f;
+    [Tooltip("Smashing through a BreakingBarrier instant stress change (-30f).")]
+    [SerializeField] private float breakingBarrierStress = -30f;
+    [Tooltip("Heavy Landing instant stress change (-15f).")]
+    [SerializeField] private float heavyLandingStress = -15f;
 
-    [Header("Feedback hooks (tint sprite, crack animation, audio, shake...)")]
-    public UnityEvent OnEnterStage1;
-    public UnityEvent OnEnterStage2;
-    public UnityEvent OnEnterStage3;
-    [Tooltip("Fired on every heavy landing (terminal-velocity impact), whatever the stage.")]
+    // ------------------------------------------------------------------ Inspector: Visuals & Death Setup
+    [Header("Visual Hooks & Overlays")]
+    [Tooltip("Main character SpriteRenderer (used for Polarity Snap white flash and Crystal Shatter hide). Auto-found if empty.")]
+    [SerializeField] private SpriteRenderer playerSpriteRenderer;
+    [Tooltip("Duration of the white flash when Polarity Snap triggers (0.1s).")]
+    [SerializeField] private float polaritySnapFlashDuration = 0.1f;
+
+    [Tooltip("Overlay SpriteRenderer for crystal cracks. Enabled when currentStress < -50f with alpha scaled to -100f.")]
+    [SerializeField] private SpriteRenderer crystalCrackOverlay;
+    [Tooltip("Optional sprite shown for 1 frame right before Crystal Shatter Overload hides the renderer.")]
+    [SerializeField] private Sprite brittleShatterFrameSprite;
+    [Tooltip("ParticleSystem played on Crystal Shatter Overload (-100%).")]
+    [SerializeField] private ParticleSystem crystalShatterParticles;
+
+    [Header("Runtime State")]
+    [SerializeField, Range(-100f, 100f)] private float currentStress;
+
+    // ------------------------------------------------------------------ Inspector: UnityEvents (UI & SFX Hooks)
+    [Header("UI & Action Events")]
+    [Tooltip("Passes currentStress (-100 to +100) whenever it changes.")]
+    public UnityEvent<float> OnStressChanged;
+    [Tooltip("Fired when dashing while currentStress < 0f (+35f Thermal Shock). Play steam 'Shhh!' SFX here.")]
+    public UnityEvent OnThermalShock;
+    [Tooltip("Fired when jumping across 0f from >= +50f or <= -50f in a single instant action. Play chime 'Ping!' SFX here.")]
+    public UnityEvent OnPolaritySnap;
+
+    [Header("Hard Lockout Events (±80%)")]
+    [Tooltip("Fired when pressing Dash or Double-Jump at >= +80f stress. Show flat puddle frame & play splash SFX.")]
+    public UnityEvent OnLiquidLockoutFail;
+    [Tooltip("Fired when touching a wall at <= -80f stress. Show rigid block frame & play stone scrape SFX.")]
+    public UnityEvent OnBrittleWallSlip;
+
+    [Header("Dual Overload Death Events (±100%)")]
+    [Tooltip("Fired at +100% Stress (Meltdown Overload). Trigger slime explosion animation & SFX.")]
+    public UnityEvent OnMeltdownOverload;
+    [Tooltip("Fired at -100% Stress (Crystal Shatter Overload). Trigger glass shatter SFX.")]
+    public UnityEvent OnCrystalShatterOverload;
+
+    [Header("Stage & Impact Events")]
+    public UnityEvent OnEnterStable;
+    public UnityEvent OnEnterStrainedTensile;
+    public UnityEvent OnEnterCriticalTensile;
+    public UnityEvent OnEnterStrainedBrittle;
+    public UnityEvent OnEnterCriticalBrittle;
     public UnityEvent OnHardLandingImpact;
-    [Tooltip("Fired when a Last Stand Dash is survived and stress is clamped to 95 %.")]
-    public UnityEvent OnLastStandSaved;
-    [Tooltip("Fired (rate-limited by the controller) when the player tries to climb in Stage 3. Hook a subtle shake / fail sound here.")]
-    public UnityEvent OnClimbBlocked;
 
-    /// <summary>Fired once when stress reaches 100 % (and is not deferred).</summary>
+    // ------------------------------------------------------------------ C# Events (Subscribed by Controller & Respawn)
+    /// <summary>Fired once when stress hits -100% or +100%.</summary>
     public event Action Overloaded;
-    /// <summary>Fired whenever the stage changes (new stage as argument).</summary>
+    /// <summary>Fired when Polarity Snap triggers so PlayerController2D can refill canDash & canDoubleJump.</summary>
+    public event Action PolaritySnapped;
     public event Action<StressStage> StageChanged;
 
-    private StressStage lastStage = StressStage.Stage1_Stable;
-    private bool deferActive, overloadPending;
+    // ------------------------------------------------------------------ Public Read-Only Properties
+    public float Current => currentStress;
+    public float CurrentStress => currentStress;
+    /// <summary>Normalized value in [-1..+1] for dual-polarity UI bars.</summary>
+    public float SignedNormalized => Mathf.Clamp(currentStress / 100f, -1f, 1f);
+    /// <summary>Magnitude in [0..1].</summary>
+    public float Normalized => Mathf.Clamp01(Mathf.Abs(currentStress) / 100f);
 
-    // ------------------------------------------------------------------ Read-only info
-    /// <summary>Current stress in percent (0..100).</summary>
-    public float Current => current;
-    /// <summary>Current stress as 0..1 (handy for a future UI).</summary>
-    public float Normalized => current / 100f;
     public bool IsOverloaded { get; private set; }
-    /// <summary>The stage derived from the current stress value.</summary>
-    public StressStage Stage => StageFor(current);
-    /// <summary>Parameters of the stage the player is in right now.</summary>
-    public StressStageParams Params => ParamsFor(Stage);
+    public bool IsLiquidLocked => currentStress >= criticalThreshold;
+    public bool IsBrittleLocked => currentStress <= -criticalThreshold;
 
-    /// <summary>Stress percent at which the given stage begins (Stage 1 = 0).</summary>
-    public float StageThreshold(StressStage s) =>
-        s == StressStage.Stage3_Critical ? stage3Threshold :
-        s == StressStage.Stage2_Strained ? stage2Threshold : 0f;
+    public float StrainedThreshold => strainedThreshold;
+    public float CriticalThreshold => criticalThreshold;
 
-    public StressStage StageFor(float value)
+    // Action value getters for PlayerController2D
+    public float NormalDashStress => normalDashStress;
+    public float ThermalShockDashStress => thermalShockDashStress;
+    public float EmergencyAirDashStress => emergencyAirDashStress;
+    public float DoubleJumpStress => doubleJumpStress;
+    public float WallClimbUpStressRate => wallClimbUpStressRate;
+    public float WallHoldStillStressRate => wallHoldStillStressRate;
+    public float WallSlideDownStressRate => wallSlideDownStressRate;
+    public float WallJumpStress => wallJumpStress;
+    public float BreakingBarrierStress => breakingBarrierStress;
+    public float HeavyLandingStress => heavyLandingStress;
+
+    public StressStage Stage => StageFor(currentStress);
+
+    // ------------------------------------------------------------------ Internal State
+    private StressStage lastStage = StressStage.Stable;
+    private Color baseSpriteColor = Color.white;
+    private Sprite baseSprite;
+    private Coroutine flashRoutine;
+
+    private void Awake()
     {
-        if (value >= stage3Threshold) return StressStage.Stage3_Critical;
-        if (value >= stage2Threshold) return StressStage.Stage2_Strained;
-        return StressStage.Stage1_Stable;
-    }
-
-    public StressStageParams ParamsFor(StressStage s)
-    {
-        switch (s)
+        if (playerSpriteRenderer == null)
         {
-            case StressStage.Stage3_Critical: return stage3;
-            case StressStage.Stage2_Strained: return stage2;
-            default: return stage1;
+            Transform vis = transform.Find("Visual");
+            if (vis != null) playerSpriteRenderer = vis.GetComponent<SpriteRenderer>();
+            if (playerSpriteRenderer == null) playerSpriteRenderer = GetComponentInChildren<SpriteRenderer>();
         }
+
+        if (playerSpriteRenderer != null)
+        {
+            baseSpriteColor = playerSpriteRenderer.color;
+            baseSprite = playerSpriteRenderer.sprite;
+        }
+
+        UpdateCrystalCrackOverlay();
     }
 
-    // ------------------------------------------------------------------ Changing stress
+    // ------------------------------------------------------------------ Core Stress Logic
     /// <summary>
-    /// Adds (or removes, if negative) a flat amount of stress in percent.
-    /// <paramref name="forceImmediate"/> = true ignores the Last Stand deferral (used for wall-puncture impacts).
+    /// Central method to modify stress from any player action.
+    /// Evaluates Polarity Snap Bonus on instant actions, updates overlays, and triggers Dual Overload Death at ±100%.
     /// </summary>
-    public void Add(float amount, bool forceImmediate = false)
+    public void ModifyStress(float amount, bool isInstantAction)
     {
         if (IsOverloaded || Mathf.Approximately(amount, 0f)) return;
-        SetCurrent(current + amount, forceImmediate);
-    }
 
-    /// <summary>Adds stress at a rate in percent/second over one time step (negative rate = recovery).</summary>
-    public void AddRate(float perSecond, float dt) => Add(perSecond * dt);
+        float previousStress = currentStress;
+        currentStress = Mathf.Clamp(currentStress + amount, minStress, maxStress);
 
-    /// <summary>Safe-ground recovery over one time step.</summary>
-    public void Recover(float dt)
-    {
-        if (IsOverloaded || current <= 0f) return;
-        SetCurrent(current - groundRecoveryRate * dt, false);
-    }
-
-    public void ResetStress()
-    {
-        current = 0f;
-        IsOverloaded = false;
-        deferActive = overloadPending = false;
-        EvaluateStage();
-    }
-
-    private void SetCurrent(float value, bool forceImmediate)
-    {
-        current = Mathf.Clamp(value, 0f, 100f);
-        EvaluateStage();
-
-        if (current >= 100f)
+        // --- Check Polarity Snap Bonus (instant action crossing 0f from strained zone >= +50 or <= -50) ---
+        if (isInstantAction)
         {
-            if (deferActive && !forceImmediate) overloadPending = true; // Last Stand Dash: decide when the dash ends
-            else FireOverload();
+            bool crossedFromPositive = previousStress >= strainedThreshold && currentStress < 0f;
+            bool crossedFromNegative = previousStress <= -strainedThreshold && currentStress > 0f;
+
+            if (crossedFromPositive || crossedFromNegative)
+            {
+                TriggerPolaritySnap();
+            }
         }
-    }
 
-    private void FireOverload()
-    {
-        if (IsOverloaded) return;
-        IsOverloaded = true;
-        overloadPending = false;
-        deferActive = false;
-        Overloaded?.Invoke();
+        ApplyPostChangeUpdates();
     }
-
-    // ------------------------------------------------------------------ Last Stand Dash
-    /// <summary>Starts postponing the 100 % death check (called when a dash begins).</summary>
-    public void BeginOverloadDefer() => deferActive = true;
 
     /// <summary>
-    /// Ends the deferral (called when the dash ends). If 100 % was reached meanwhile:
-    /// <paramref name="survive"/> true -> clamp to the survival value and raise OnLastStandSaved, false -> die now.
+    /// Pulls currentStress toward 0f at safeGroundRecoveryRate (10f/sec) while on safe ground.
     /// </summary>
-    public void ResolveOverloadDefer(bool survive)
+    public void RecoverOnSafeGround(float dt)
     {
-        deferActive = false;
-        if (!overloadPending || IsOverloaded) return;
-        overloadPending = false;
+        if (IsOverloaded || Mathf.Approximately(currentStress, 0f)) return;
 
-        if (survive)
+        currentStress = Mathf.MoveTowards(currentStress, 0f, safeGroundRecoveryRate * dt);
+        ApplyPostChangeUpdates();
+    }
+
+    /// <summary>Applies normal Dash stress (+25f) or Thermal Shock (+35f if currentStress &lt; 0f).</summary>
+    public void ApplyNormalDashStress()
+    {
+        if (currentStress < 0f)
         {
-            SetCurrent(lastStandSurvivalStress, true);
-            OnLastStandSaved?.Invoke();
+            ModifyStress(thermalShockDashStress, true);
+            OnThermalShock?.Invoke();
         }
         else
         {
-            FireOverload();
+            ModifyStress(normalDashStress, true);
         }
     }
 
-    // ------------------------------------------------------------------ Hooks
+    public void ApplyEmergencyAirDashStress() => ModifyStress(emergencyAirDashStress, true);
+    public void ApplyDoubleJumpStress() => ModifyStress(doubleJumpStress, true);
+    public void ApplyWallClimbStress(float dt) => ModifyStress(wallClimbUpStressRate * dt, false);
+    public void ApplyWallHoldStress(float dt) => ModifyStress(wallHoldStillStressRate * dt, false);
+    public void ApplyWallSlideStress(float dt) => ModifyStress(wallSlideDownStressRate * dt, false);
+    public void ApplyWallJumpStress() => ModifyStress(wallJumpStress, true);
+    public void ApplyBreakingBarrierStress() => ModifyStress(breakingBarrierStress, true);
+
+    public void ApplyHeavyLandingStress()
+    {
+        OnHardLandingImpact?.Invoke();
+        ModifyStress(heavyLandingStress, true);
+    }
+
+    // Legacy compatibility wrappers
+    public void Add(float amount, bool isInstant = true) => ModifyStress(amount, isInstant);
+    public void AddRate(float perSecond, float dt) => ModifyStress(perSecond * dt, false);
+    public void Recover(float dt) => RecoverOnSafeGround(dt);
+
+    // ------------------------------------------------------------------ Lockout Feedback Triggers
+    public void NotifyLiquidLockoutFail() => OnLiquidLockoutFail?.Invoke();
+    public void NotifyBrittleWallSlip() => OnBrittleWallSlip?.Invoke();
     public void NotifyHardLanding() => OnHardLandingImpact?.Invoke();
-    public void NotifyClimbBlocked() => OnClimbBlocked?.Invoke();
+
+    // ------------------------------------------------------------------ Polarity Snap Bonus
+    private void TriggerPolaritySnap()
+    {
+        PolaritySnapped?.Invoke();
+        OnPolaritySnap?.Invoke();
+
+        if (playerSpriteRenderer != null && gameObject.activeInHierarchy)
+        {
+            if (flashRoutine != null) StopCoroutine(flashRoutine);
+            flashRoutine = StartCoroutine(PolaritySnapFlashRoutine());
+        }
+    }
+
+    private IEnumerator PolaritySnapFlashRoutine()
+    {
+        playerSpriteRenderer.color = Color.white;
+        yield return new WaitForSeconds(polaritySnapFlashDuration);
+        if (!IsOverloaded && playerSpriteRenderer != null)
+            playerSpriteRenderer.color = baseSpriteColor;
+        flashRoutine = null;
+    }
+
+    // ------------------------------------------------------------------ Post-Change, Overlays & Dual Overload Death
+    private void ApplyPostChangeUpdates()
+    {
+        UpdateCrystalCrackOverlay();
+        EvaluateStage();
+        OnStressChanged?.Invoke(currentStress);
+
+        if (currentStress >= maxStress)
+        {
+            TriggerMeltdownOverload();
+        }
+        else if (currentStress <= minStress)
+        {
+            TriggerCrystalShatterOverload();
+        }
+    }
+
+    /// <summary>Updates the brittle crack overlay when currentStress &lt; -50f.</summary>
+    private void UpdateCrystalCrackOverlay()
+    {
+        if (crystalCrackOverlay == null) return;
+
+        if (currentStress < -strainedThreshold)
+        {
+            crystalCrackOverlay.enabled = true;
+            float span = Mathf.Max(1f, Mathf.Abs(minStress) - strainedThreshold); // 50f range (-50 to -100)
+            float alpha = Mathf.Clamp01((Mathf.Abs(currentStress) - strainedThreshold) / span);
+            Color c = crystalCrackOverlay.color;
+            c.a = alpha;
+            crystalCrackOverlay.color = c;
+        }
+        else
+        {
+            crystalCrackOverlay.enabled = false;
+        }
+    }
+
+    /// <summary>Positive Overload (+100%): Meltdown death.</summary>
+    public void TriggerMeltdownOverload()
+    {
+        if (IsOverloaded) return;
+        IsOverloaded = true;
+
+        OnMeltdownOverload?.Invoke();
+        Overloaded?.Invoke();
+    }
+
+    /// <summary>Negative Overload (-100%): Crystal Shatter death (1 frame rigid sprite -> hide -> shatter particles).</summary>
+    public void TriggerCrystalShatterOverload()
+    {
+        if (IsOverloaded) return;
+        IsOverloaded = true;
+
+        OnCrystalShatterOverload?.Invoke();
+        if (gameObject.activeInHierarchy)
+            StartCoroutine(CrystalShatterDeathRoutine());
+        Overloaded?.Invoke();
+    }
+
+    private IEnumerator CrystalShatterDeathRoutine()
+    {
+        if (playerSpriteRenderer != null && brittleShatterFrameSprite != null)
+        {
+            playerSpriteRenderer.sprite = brittleShatterFrameSprite;
+        }
+
+        // Show rigid crystal frame for 1 frame before shattering
+        yield return null;
+
+        if (playerSpriteRenderer != null)
+            playerSpriteRenderer.enabled = false;
+        if (crystalCrackOverlay != null)
+            crystalCrackOverlay.enabled = false;
+
+        if (crystalShatterParticles != null)
+            crystalShatterParticles.Play();
+    }
+
+    // ------------------------------------------------------------------ Reset on Respawn
+    public void ResetStress()
+    {
+        if (flashRoutine != null)
+        {
+            StopCoroutine(flashRoutine);
+            flashRoutine = null;
+        }
+
+        currentStress = 0f;
+        IsOverloaded = false;
+
+        if (playerSpriteRenderer != null)
+        {
+            playerSpriteRenderer.enabled = true;
+            playerSpriteRenderer.color = baseSpriteColor;
+            if (baseSprite != null) playerSpriteRenderer.sprite = baseSprite;
+        }
+
+        UpdateCrystalCrackOverlay();
+        EvaluateStage();
+        OnStressChanged?.Invoke(currentStress);
+    }
+
+    // ------------------------------------------------------------------ Stage Evaluation
+    public StressStage StageFor(float value)
+    {
+        if (value >= criticalThreshold) return StressStage.Critical_Tensile;
+        if (value >= strainedThreshold) return StressStage.Strained_Tensile;
+        if (value <= -criticalThreshold) return StressStage.Critical_Brittle;
+        if (value <= -strainedThreshold) return StressStage.Strained_Brittle;
+        return StressStage.Stable;
+    }
+
+    public float StageThreshold(StressStage s)
+    {
+        switch (s)
+        {
+            case StressStage.Critical_Tensile:
+            case StressStage.Critical_Brittle:
+                return criticalThreshold;
+            case StressStage.Strained_Tensile:
+            case StressStage.Strained_Brittle:
+                return strainedThreshold;
+            default:
+                return 0f;
+        }
+    }
 
     private void EvaluateStage()
     {
@@ -258,9 +407,11 @@ public class PlayerStress : MonoBehaviour
 
         switch (s)
         {
-            case StressStage.Stage1_Stable: OnEnterStage1?.Invoke(); break;
-            case StressStage.Stage2_Strained: OnEnterStage2?.Invoke(); break;
-            case StressStage.Stage3_Critical: OnEnterStage3?.Invoke(); break;
+            case StressStage.Stable: OnEnterStable?.Invoke(); break;
+            case StressStage.Strained_Tensile: OnEnterStrainedTensile?.Invoke(); break;
+            case StressStage.Critical_Tensile: OnEnterCriticalTensile?.Invoke(); break;
+            case StressStage.Strained_Brittle: OnEnterStrainedBrittle?.Invoke(); break;
+            case StressStage.Critical_Brittle: OnEnterCriticalBrittle?.Invoke(); break;
         }
     }
 }
