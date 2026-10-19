@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: TilesetReformDirt
   m_EditorClassIdentifier: Unity.2D.Tilemap.Extras::UnityEngine.Tilemaps.AnimatedTile
   m_AnimatedSprites:
-  - {fileID: 172101329, guid: fc88220d0cd588e44bee8ff42480c00c, type: 3}
-  - {fileID: 1355444743, guid: fc88220d0cd588e44bee8ff42480c00c, type: 3}
-  - {fileID: 513565104, guid: fc88220d0cd588e44bee8ff42480c00c, type: 3}
+  - {fileID: 1992862751166075669, guid: 961a1c0a764d0d749b0225da23d023f5, type: 3}
+  - {fileID: -5276867040034731545, guid: e6dfccf2339c0194e934151018af30d6, type: 3}
+  - {fileID: 5750678877975532995, guid: ac3ee3e7e7660c343aaf34857c522ada, type: 3}
   m_MinSpeed: 1
   m_MaxSpeed: 1
   m_AnimationStartTime: 0
