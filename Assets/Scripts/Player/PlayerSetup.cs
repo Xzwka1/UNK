@@ -60,6 +60,9 @@ public class PlayerSetup : MonoBehaviour
         box.offset = Vector2.zero;
         Ensure<PlayerHurtbox>(hb.gameObject);
 
+        // --- Overhead stress bar (built from sprites at runtime, so only added in Play mode).
+        if (runtime) Ensure<StressBarOverhead>(gameObject);
+
         // --- Visual (greybox rectangle, scaled to the hitbox).
         if (createVisual)
         {

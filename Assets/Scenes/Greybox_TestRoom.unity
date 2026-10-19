@@ -386,7 +386,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 288981622}
-  - component: {fileID: 288981621}
+  - component: {fileID: 288981623}
   m_Layer: 0
   m_Name: GreyboxLevelGenerator
   m_TagString: Untagged
@@ -394,38 +394,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &288981621
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 288981620}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f7a2f453205f54744b4338378a4ead09, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GreyboxLevelGenerator
-  generateOnAwake: 1
-  player: {fileID: 1168330936}
-  pixelsPerUnit: 16
-  groundThickness: 2
-  runLength: 24
-  wallHeight: 14
-  wallThickness: 1
-  wallGap: 4
-  ceilingHeight: 4
-  ceilingThickness: 1.5
-  ceilingLength: 10
-  ceilingSlotPixels: 18
-  tunnelLength: 6
-  tunnelHeightPixels: 24
-  pitWidth: 10
-  landingLength: 10
-  killZoneDepth: 8
-  groundColor: {r: 0.45, g: 0.45, b: 0.5, a: 1}
-  wallColor: {r: 0.33, g: 0.38, b: 0.55, a: 1}
-  obstacleColor: {r: 0.55, g: 0.4, b: 0.4, a: 1}
 --- !u!4 &288981622
 Transform:
   m_ObjectHideFlags: 0
@@ -472,6 +440,35 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &288981623
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 288981620}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67d827b6d11558740be44c1c05f3e0e8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Level1GauntletGenerator
+  generateOnStart: 1
+  player: {fileID: 1168330936}
+  addSafetyKillZone: 1
+  distanceMultiplier: 1
+  heightMultiplier: 1
+  brakeGap: 4
+  shatterGapWidth: 14
+  shatterGapMultiplier: 1
+  spawnOffset: {x: 1.5, y: 0.1}
+  groundColor: {r: 0.22745098, g: 0.22745098, b: 0.23529412, a: 1}
+  fragileColor: {r: 1, g: 0.62352943, b: 0.039215688, a: 1}
+  barrierColor: {r: 0.19607843, g: 0.6784314, b: 0.9019608, a: 1}
+  spikesColor: {r: 1, g: 0.23137255, b: 0.1882353, a: 1}
+  goalColor: {r: 0.1882353, g: 0.81960785, b: 0.34509805, a: 1}
+  drawZoneGizmos: 1
+  zones: []
+  spawnLocal: {x: 0, y: 0, z: 0}
 --- !u!1 &415428647
 GameObject:
   m_ObjectHideFlags: 0
@@ -907,9 +904,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController2D
   maxSpeed: 9
   accelerationTime: 0.08
-  decelerationTime: 0.06
-  instantAirTurn: 1
-  airAccelerationTime: 0.1
   airDecelerationTime: 0.25
   baseGravityScale: 3
   fallGravityMultiplier: 1.6
@@ -933,6 +927,7 @@ MonoBehaviour:
   wallJumpHeight: 2.5
   wallJumpControlLock: 0.12
   maxWallJumps: 5
+<<<<<<< HEAD
   assists:
     coyoteTime: 0.1
     wallCoyoteTime: 0.08
@@ -940,6 +935,16 @@ MonoBehaviour:
     airJumpLandingBufferDistance: 0.6
     cornerCorrectionPixels: 4
     cornerCorrectionOnJump: 1
+=======
+  climbBlockedFeedbackInterval: 0.4
+  heavyLandingVelocityThreshold: 16
+  coyoteTime: 0.1
+  wallCoyoteTime: 0.08
+  jumpBufferTime: 0.12
+  airJumpLandingBufferDistance: 0.6
+  cornerCorrectionPixels: 4
+  cornerCorrectionOnJump: 1
+>>>>>>> Earth_Prototype_test
   groundMask:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -957,12 +962,69 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d6766bd2a0c4fdd47b16aa29d660d724, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerStress
-  gripHoldRate: 20
-  climbUpRate: 35
-  slideDownRate: 0
+  stage2Threshold: 50
+  stage3Threshold: 80
+  stage1:
+    groundDecelTime: 0.02
+    airAccelTime: 0.04
+    wallHoldSlipSpeed: 0
+    wallHoldStressRate: 20
+    climbSpeedMultiplier: 1
+    climbStressRate: 35
+    wallSlideStressRate: 0
+    dashMultiplier: 1
+    airJumpHeightMultiplier: 1
+    dashAirJumpCost: 0
+    heavyLandingCost: 0
+    solidWallDashCost: 0
+  stage2:
+    groundDecelTime: 0.12
+    airAccelTime: 0.08
+    wallHoldSlipSpeed: 1.5
+    wallHoldStressRate: 20
+    climbSpeedMultiplier: 0.8
+    climbStressRate: 35
+    wallSlideStressRate: -15
+    dashMultiplier: 1.1
+    airJumpHeightMultiplier: 1
+    dashAirJumpCost: 10
+    heavyLandingCost: 10
+    solidWallDashCost: 10
+  stage3:
+    groundDecelTime: 0.22
+    airAccelTime: 0.12
+    wallHoldSlipSpeed: 4
+    wallHoldStressRate: 20
+    climbSpeedMultiplier: 0
+    climbStressRate: 35
+    wallSlideStressRate: -15
+    dashMultiplier: 1.25
+    airJumpHeightMultiplier: 0.75
+    dashAirJumpCost: 15
+    heavyLandingCost: 20
+    solidWallDashCost: 20
   groundRecoveryRate: 40
   wallJumpCost: 20
+  lastStandSurvivalStress: 95
   current: 0
+  OnEnterStage1:
+    m_PersistentCalls:
+      m_Calls: []
+  OnEnterStage2:
+    m_PersistentCalls:
+      m_Calls: []
+  OnEnterStage3:
+    m_PersistentCalls:
+      m_Calls: []
+  OnHardLandingImpact:
+    m_PersistentCalls:
+      m_Calls: []
+  OnLastStandSaved:
+    m_PersistentCalls:
+      m_Calls: []
+  OnClimbBlocked:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!70 &1168330940
 CapsuleCollider2D:
   m_ObjectHideFlags: 0

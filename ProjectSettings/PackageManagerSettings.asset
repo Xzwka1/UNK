@@ -51,7 +51,13 @@ MonoBehaviour:
     m_Modified: 0
     m_ErrorMessage: 
     m_UserModificationsEntityId:
+<<<<<<< HEAD
       m_rawData: 568105589213755318
     m_OriginalEntityId:
       m_rawData: 568105589213754542
+=======
+      m_rawData: 568105589213756514
+    m_OriginalEntityId:
+      m_rawData: 568105589213756512
+>>>>>>> Earth_Prototype_test
   m_LoadAssets: 0
