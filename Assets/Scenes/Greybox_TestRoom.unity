@@ -617,7 +617,7 @@ Transform:
   m_GameObject: {fileID: 687852900}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.08, z: 0}
+  m_LocalPosition: {x: 0, y: -0.6875, z: 0}
   m_LocalScale: {x: 0.35, y: 0.35, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -742,6 +742,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerRespawn
   respawnDelay: 0.35
+  meltdownSlideDownSpeed: 3.5
   spawnPoint: {fileID: 0}
 --- !u!114 &1168330937
 MonoBehaviour:
@@ -763,7 +764,7 @@ MonoBehaviour:
   crystalOverlaySprite: {fileID: -7037452352178220537, guid: 9cad10337b5c95f449ba5b0ca4818d7f, type: 3}
   brittleShatterSprite: {fileID: -2610990157313487943, guid: b57d700924b580c45bd200a734dc8897, type: 3}
   characterVisualScale: {x: 0.35, y: 0.35, z: 1}
-  characterVisualOffset: {x: 0, y: 0.08, z: 0}
+  characterVisualOffset: {x: 0, y: -0.6875, z: 0}
   gameplayCameraSize: 6.5
   createVisual: 1
   visualColor: {r: 0.25, g: 0.55, b: 1, a: 1}
@@ -807,6 +808,7 @@ MonoBehaviour:
   wallJumpControlLock: 0.12
   maxWallJumps: 5
   lockoutFeedbackCooldown: 0.35
+  wallMeltdownSlideStressRate: 60
   heavyLandingVelocityThreshold: 16
   coyoteTime: 0.1
   wallCoyoteTime: 0.08
