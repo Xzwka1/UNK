@@ -833,7 +833,7 @@ Transform:
   m_GameObject: {fileID: 687852900}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.69000006, z: 0}
+  m_LocalPosition: {x: 0, y: -0.6875, z: 0}
   m_LocalScale: {x: 0.35, y: 0.35, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3822,6 +3822,7 @@ GameObject:
   - component: {fileID: 1168330938}
   - component: {fileID: 1168330936}
   - component: {fileID: 1168330937}
+  - component: {fileID: 1168330943}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -3842,6 +3843,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerRespawn
   respawnDelay: 0.35
+  meltdownSlideDownSpeed: 3.5
   spawnPoint: {fileID: 0}
 --- !u!114 &1168330937
 MonoBehaviour:
@@ -3863,7 +3865,7 @@ MonoBehaviour:
   crystalOverlaySprite: {fileID: -7037452352178220537, guid: 9cad10337b5c95f449ba5b0ca4818d7f, type: 3}
   brittleShatterSprite: {fileID: -2610990157313487943, guid: b57d700924b580c45bd200a734dc8897, type: 3}
   characterVisualScale: {x: 0.35, y: 0.35, z: 1}
-  characterVisualOffset: {x: 0, y: 0.08, z: 0}
+  characterVisualOffset: {x: 0, y: -0.6875, z: 0}
   gameplayCameraSize: 6.5
   createVisual: 1
   visualColor: {r: 0.25, g: 0.55, b: 1, a: 1}
@@ -3907,6 +3909,7 @@ MonoBehaviour:
   wallJumpControlLock: 0.12
   maxWallJumps: 5
   lockoutFeedbackCooldown: 0.35
+  wallMeltdownSlideStressRate: 60
   heavyLandingVelocityThreshold: 16
   coyoteTime: 0.1
   wallCoyoteTime: 0.08
@@ -3946,10 +3949,10 @@ MonoBehaviour:
   wallJumpStress: -20
   breakingBarrierStress: -30
   heavyLandingStress: -15
-  playerSpriteRenderer: {fileID: 0}
+  playerSpriteRenderer: {fileID: 687852902}
   polaritySnapFlashDuration: 0.1
   crystalCrackOverlay: {fileID: 0}
-  brittleShatterFrameSprite: {fileID: 0}
+  brittleShatterFrameSprite: {fileID: -2610990157313487943, guid: b57d700924b580c45bd200a734dc8897, type: 3}
   crystalShatterParticles: {fileID: 0}
   currentStress: 0
   OnStressChanged:
@@ -4069,8 +4072,29 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 687852901}
+  - {fileID: 1714360549}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1168330943
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1168330935}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9facc47edbe194348b8c5f863a067827, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimator2D
+  controller: {fileID: 1168330938}
+  stress: {fileID: 1168330939}
+  respawn: {fileID: 1168330936}
+  rb: {fileID: 1168330941}
+  animator: {fileID: 687852903}
+  spriteRenderer: {fileID: 687852902}
+  crystalCrackOverlay: {fileID: 0}
+  artworkFacesLeft: 0
 --- !u!1 &1588447625
 GameObject:
   m_ObjectHideFlags: 0
@@ -4118,9 +4142,11 @@ MonoBehaviour:
   visualRoot: {fileID: 415428649}
   spriteRenderer: {fileID: 415428648}
   animator: {fileID: 0}
-  normalSprite: {fileID: 0}
-  crackingSprite: {fileID: 0}
-  reformingSprite: {fileID: 0}
+  normalSprite: {fileID: 5750678877975532995, guid: ac3ee3e7e7660c343aaf34857c522ada, type: 3}
+  crackingSprite: {fileID: 1941086601516833325, guid: 8089c255b846c264eb1bcbf9ade6c0bc, type: 3}
+  breakingSprite: {fileID: 2842861179677328681, guid: 24635b78022fb3d4286646d18812beae, type: 3}
+  reformingEarlySprite: {fileID: 1992862751166075669, guid: 961a1c0a764d0d749b0225da23d023f5, type: 3}
+  reformingSprite: {fileID: -5276867040034731545, guid: e6dfccf2339c0194e934151018af30d6, type: 3}
   crackingTint: {r: 1, g: 0.75, b: 0.6, a: 1}
   shakeAmplitude: 0.05
   shakeFrequency: 40
@@ -4204,6 +4230,97 @@ Transform:
   - {fileID: 415428649}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1714360548
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1714360549}
+  - component: {fileID: 1714360551}
+  - component: {fileID: 1714360550}
+  m_Layer: 0
+  m_Name: Hurtbox
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1714360549
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1714360548}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1168330942}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1714360550
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1714360548}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe1bbe4910f0bb04892a1d09871b2052, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHurtbox
+--- !u!61 &1714360551
+BoxCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1714360548}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 1
+  m_UsedByEffector: 0
+  m_CompositeOperation: 0
+  m_CompositeOrder: 0
+  m_Offset: {x: 0, y: 0}
+  m_SpriteTilingProperty:
+    border: {x: 0, y: 0, z: 0, w: 0}
+    pivot: {x: 0, y: 0}
+    oldSize: {x: 0, y: 0}
+    newSize: {x: 0, y: 0}
+    adaptiveTilingThreshold: 0
+    drawMode: 0
+    adaptiveTiling: 0
+  m_AutoTiling: 0
+  m_Size: {x: 0.625, y: 1.125}
+  m_EdgeRadius: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
