@@ -794,8 +794,8 @@ MonoBehaviour:
   apexThreshold: 2
   jumpHeight: 3.2
   airJumpHeight: 2.5
-  dashSpeed: 24
-  dashDuration: 0.15
+  dashSpeed: 12
+  dashDuration: 0.5
   dashFreezeDuration: 0.05
   dashCooldown: 0.2
   dashExitSpeedMultiplier: 0.6
