@@ -1,29 +1,142 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 /// <summary>
 /// A solid barrier the player can smash by dashing into it.
-/// When broken during a Dash:
-///   1. Destroys/deactivates the barrier and fires OnBroken.
+/// Visual States:
+///   - Intact (Normal): shows <see cref="normalSprite"/> (IMG_0491), Collider2D enabled.
+///   - Broken (Smashed): shows <see cref="brokenSprite"/> (IMG_0492), Collider2D disabled immediately so the player dashes through.
+///
+/// Gameplay Effects on Dash impact:
+///   1. Disables Collider2D and switches sprite to <see cref="brokenSprite"/> (IMG_0492).
 ///   2. Reduces Stress immediately by -30f (via PlayerStress.ApplyBreakingBarrierStress).
 ///   3. Refunds 1 Air Dash (canDash = true) immediately to the player.
+///   4. Optionally resets back to Intact when the player respawns (<see cref="resetOnPlayerRespawn"/>).
 /// </summary>
+[DisallowMultipleComponent]
+[RequireComponent(typeof(BoxCollider2D))]
 public class BreakingBarrier : MonoBehaviour
 {
+    [Header("Visuals - 2-Stage Sprites (auto-loaded from Assets/Tileset/Tileset)")]
+    [Tooltip("Stage 1 (Intact): Solid barrier wall (IMG_0491).")]
+    [SerializeField] private Sprite normalSprite;
+    [Tooltip("Stage 2 (Broken): Smashed barrier wall (IMG_0492).")]
+    [SerializeField] private Sprite brokenSprite;
+
+    [Header("References (auto-filled if empty)")]
+    [SerializeField] private Collider2D[] colliders;
+    [SerializeField] private SpriteRenderer spriteRenderer;
+
+    [Header("Break & Respawn Behaviour")]
+    [Tooltip("If true (default), the smashed sprite (IMG_0492) shows briefly on impact and then the barrier disappears.")]
+    [SerializeField] private bool hideAfterBreak = true;
+    [Tooltip("How long IMG_0492 is shown before the barrier disappears.")]
+    [SerializeField, Min(0f)] private float brokenDisplayDuration = 0.25f;
+    [Tooltip("Destroy the GameObject after breaking (only used if hideAfterBreak is true and resetOnPlayerRespawn is false).")]
+    [SerializeField] private bool destroyOnBreak = false;
+    [Tooltip("Automatically restore the barrier when the player dies and respawns.")]
+    [SerializeField] private bool resetOnPlayerRespawn = true;
+
+    [Header("Events")]
     [Tooltip("Hook for particles / audio when the barrier breaks.")]
     public UnityEvent OnBroken;
 
-    [Tooltip("Destroy the GameObject when broken. If off, it is only deactivated.")]
-    [SerializeField] private bool destroyOnBreak = true;
-
     private bool isBroken;
+    private Color baseColor = Color.white;
+    private PlayerRespawn trackedRespawn;
+    private Coroutine breakRoutine;
 
-    /// <summary>Breaks the barrier and applies the -30f stress relief + Air Dash refund to the dashing player.</summary>
+    // ------------------------------------------------------------------ Lifecycle & Editor Auto-Wiring
+    private void Reset()
+    {
+        AutoLoadSpritesInEditor();
+        colliders = GetComponents<Collider2D>();
+        spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        if (spriteRenderer == null) spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
+        if (normalSprite != null && spriteRenderer.sprite == null)
+            spriteRenderer.sprite = normalSprite;
+
+        var box = GetComponent<BoxCollider2D>();
+        if (box != null && spriteRenderer != null && spriteRenderer.sprite != null)
+            box.size = spriteRenderer.sprite.bounds.size;
+    }
+
+    private void OnValidate()
+    {
+        AutoLoadSpritesInEditor();
+        if (colliders == null || colliders.Length == 0) colliders = GetComponents<Collider2D>();
+        if (spriteRenderer == null) spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        if (!Application.isPlaying && spriteRenderer != null && spriteRenderer.sprite == null && normalSprite != null)
+            spriteRenderer.sprite = normalSprite;
+    }
+
+    private void AutoLoadSpritesInEditor()
+    {
+#if UNITY_EDITOR
+        if (normalSprite == null)
+            normalSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/Tileset/IMG_0491.png");
+        if (brokenSprite == null)
+            brokenSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/Tileset/IMG_0492.png");
+#endif
+    }
+
+    private void Awake()
+    {
+        AutoLoadSpritesInEditor();
+        if (colliders == null || colliders.Length == 0) colliders = GetComponents<Collider2D>();
+        if (spriteRenderer == null) spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+
+        if (spriteRenderer != null)
+        {
+            baseColor = spriteRenderer.color;
+            if (normalSprite != null)
+                spriteRenderer.sprite = normalSprite;
+        }
+    }
+
+    private void OnEnable()
+    {
+        if (resetOnPlayerRespawn)
+        {
+            trackedRespawn = FindAnyObjectByType<PlayerRespawn>();
+            if (trackedRespawn != null)
+                trackedRespawn.Respawned += ResetBarrier;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (trackedRespawn != null)
+        {
+            trackedRespawn.Respawned -= ResetBarrier;
+            trackedRespawn = null;
+        }
+    }
+
+    // ------------------------------------------------------------------ Public API
+    /// <summary>Breaks the barrier, shows IMG_0492, disables colliders, and applies -30f stress + 1 Air Dash refund.</summary>
     public void Break(PlayerController2D player = null)
     {
         if (isBroken) return;
         isBroken = true;
 
+        // 1. Disable colliders immediately so the dashing player passes straight through
+        SetCollidersEnabled(false);
+
+        // 2. Show broken sprite (IMG_0492)
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.enabled = true;
+            spriteRenderer.color = baseColor;
+            if (brokenSprite != null)
+                spriteRenderer.sprite = brokenSprite;
+        }
+
+        // 3. Refund 1 Air Dash & apply -30f Stress relief
         if (player != null)
         {
             player.RefundAirDash();
@@ -31,10 +144,67 @@ public class BreakingBarrier : MonoBehaviour
             {
                 stress.ApplyBreakingBarrierStress(); // -30f instant
             }
+            if (trackedRespawn == null && resetOnPlayerRespawn && player.TryGetComponent(out PlayerRespawn pr))
+            {
+                trackedRespawn = pr;
+                trackedRespawn.Respawned += ResetBarrier;
+            }
         }
 
+        if (CameraEffects.Instance != null)
+            CameraEffects.Instance.MicroShake();
+
         OnBroken?.Invoke();
-        if (destroyOnBreak) Destroy(gameObject);
-        else gameObject.SetActive(false);
+
+        if (hideAfterBreak && gameObject.activeInHierarchy)
+        {
+            if (breakRoutine != null) StopCoroutine(breakRoutine);
+            breakRoutine = StartCoroutine(HideAfterDelayRoutine());
+        }
+    }
+
+    /// <summary>Restores the barrier to its solid intact state (IMG_0491).</summary>
+    public void ResetBarrier()
+    {
+        if (breakRoutine != null)
+        {
+            StopCoroutine(breakRoutine);
+            breakRoutine = null;
+        }
+
+        isBroken = false;
+        SetCollidersEnabled(true);
+
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.enabled = true;
+            spriteRenderer.color = baseColor;
+            if (normalSprite != null)
+                spriteRenderer.sprite = normalSprite;
+        }
+    }
+
+    private IEnumerator HideAfterDelayRoutine()
+    {
+        yield return new WaitForSeconds(brokenDisplayDuration);
+        if (destroyOnBreak && !resetOnPlayerRespawn)
+        {
+            Destroy(gameObject);
+        }
+        else if (spriteRenderer != null)
+        {
+            spriteRenderer.enabled = false;
+        }
+        breakRoutine = null;
+    }
+
+    private void SetCollidersEnabled(bool enabled)
+    {
+        if (colliders == null) return;
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            if (colliders[i] != null)
+                colliders[i].enabled = enabled;
+        }
     }
 }

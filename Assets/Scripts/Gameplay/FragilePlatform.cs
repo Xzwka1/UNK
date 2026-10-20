@@ -1,28 +1,28 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 /// <summary>
-/// Fragile / crumbling ground. Attach to a ground object that has one or more (non-trigger) Collider2D.
+/// Fragile / crumbling ground. Attach to a ground object that has one or more (non-trigger) Collider2D,
+/// or drag the FragilePlatform prefab directly into any scene.
 ///
-/// State machine:
-///   Normal    -> solid ground.
+/// State machine & 5-Sprite Progression:
+///   Normal    -> solid ground (shows normalSprite: IMG_0458).
 ///   Cracking  -> started when the player stands on top of it (or grips it). Lasts <see cref="crackDuration"/> (0.5 s),
-///                the visual shakes. The timer is COMMITTED: jumping off does not break it early, does not reset it,
-///                and touching it again while cracking does not restart it (see <see cref="cancelCrackWhenPlayerLeaves"/>
-///                to opt in to the "cancel if the player leaves" design instead).
+///                the visual shakes:
+///                  - 0%..50% of crackDuration: shows <see cref="crackingSprite"/> (IMG_0459)
+///                  - 50%..100% of crackDuration: shows <see cref="breakingSprite"/> (IMG_0460)
 ///   Destroyed -> colliders disabled, visual hidden. Lasts <see cref="destroyedDuration"/> (3.0 s).
-///   Reforming -> colliders re-enabled, visual fades back in for <see cref="reformDuration"/>, then back to Normal.
-///
-/// Coyote time: PlayerController2D senses the ground with a physics query every FixedUpdate. The moment this platform's
-/// colliders are disabled the player is no longer grounded, and because the coyote timer only starts counting down when
-/// grounded becomes false, the player automatically keeps a full coyote-time jump window after the floor vanishes.
-/// Nothing needs to be forced from this script.
-///
-/// NOTE ON TIMING: timers use Time.deltaTime (scaled, so they pause during a Freeze Frame) and are checked once per
-/// frame, so a transition happens on the first frame at or after the configured time (at most one frame late).
+///   Reforming -> colliders re-enabled, visual fades back in for <see cref="reformDuration"/> (0.4 s):
+///                  - 0%..50% of reformDuration: shows <see cref="reformingEarlySprite"/> (23d55c94730f5902)
+///                  - 50%..100% of reformDuration: shows <see cref="reformingSprite"/> (f54d9acec6b489a3)
+///                then returns to Normal (IMG_0458).
 /// </summary>
 [DisallowMultipleComponent]
+[RequireComponent(typeof(BoxCollider2D))]
 public class FragilePlatform : MonoBehaviour
 {
     public enum PlatformState { Normal, Cracking, Destroyed, Reforming }
@@ -33,8 +33,8 @@ public class FragilePlatform : MonoBehaviour
     [SerializeField, Min(0f)] private float crackDuration = 0.5f;
     [Tooltip("How long the platform stays gone before it starts to reform.")]
     [SerializeField, Min(0f)] private float destroyedDuration = 3f;
-    [Tooltip("Length of the Reforming visual (fade-in / animation). The collider is already solid during this time.")]
-    [SerializeField, Min(0f)] private float reformDuration = 0.25f;
+    [Tooltip("Length of the Reforming visual (2-stage reform sprites + fade-in). The collider is already solid during this time.")]
+    [SerializeField, Min(0f)] private float reformDuration = 0.4f;
 
     // ------------------------------------------------------------------ Inspector: trigger rules
     [Header("Trigger rules")]
@@ -71,14 +71,21 @@ public class FragilePlatform : MonoBehaviour
     [Tooltip("Optional. Triggers below are set on state changes.")]
     [SerializeField] private Animator animator;
 
-    // ------------------------------------------------------------------ Inspector: visuals
-    [Header("Visuals - sprites (optional; empty = keep the current sprite)")]
+    // ------------------------------------------------------------------ Inspector: visuals (5-Stage Sprites)
+    [Header("Visuals - 5-Stage Sprites (auto-loaded from Assets/Tileset/Tileset)")]
+    [Tooltip("Stage 1 (Normal): Intact platform (IMG_0458).")]
     [SerializeField] private Sprite normalSprite;
+    [Tooltip("Stage 2A (Cracking 0%..50%): Cracked stones under grass (IMG_0459).")]
     [SerializeField] private Sprite crackingSprite;
+    [Tooltip("Stage 2B (Cracking 50%..100%): Stones crumbling/falling from bottom (IMG_0460).")]
+    [SerializeField] private Sprite breakingSprite;
+    [Tooltip("Stage 4A (Reforming 0%..50%): Bottom rubble gathering (23d55c94730f5902).")]
+    [SerializeField] private Sprite reformingEarlySprite;
+    [Tooltip("Stage 4B (Reforming 50%..100%): Grass and stones reassembling (f54d9acec6b489a3).")]
     [SerializeField] private Sprite reformingSprite;
 
     [Header("Visuals - placeholders / tuning")]
-    [Tooltip("Multiplies the sprite colour while cracking (handy placeholder when there is no crack art).")]
+    [Tooltip("Multiplies the sprite colour while cracking ONLY when no crackingSprite is assigned.")]
     [SerializeField] private Color crackingTint = new Color(1f, 0.75f, 0.6f, 1f);
     [Tooltip("Max shake offset of the visual while cracking (world units).")]
     [SerializeField, Min(0f)] private float shakeAmplitude = 0.05f;
@@ -118,15 +125,49 @@ public class FragilePlatform : MonoBehaviour
     private readonly List<PlayerController2D> contacts = new List<PlayerController2D>();
     private readonly Collider2D[] overlapBuffer = new Collider2D[8];
 
-    // ------------------------------------------------------------------ Lifecycle
+    // ------------------------------------------------------------------ Lifecycle & Editor Auto-Wiring
     private void Reset()
     {
+        AutoLoadSpritesInEditor();
         colliders = GetComponents<Collider2D>();
         spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        if (spriteRenderer == null) spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
+        if (normalSprite != null && spriteRenderer.sprite == null)
+            spriteRenderer.sprite = normalSprite;
+
+        var box = GetComponent<BoxCollider2D>();
+        if (box != null && spriteRenderer != null && spriteRenderer.sprite != null)
+            box.size = spriteRenderer.sprite.bounds.size;
+    }
+
+    private void OnValidate()
+    {
+        AutoLoadSpritesInEditor();
+        if (colliders == null || colliders.Length == 0) colliders = GetComponents<Collider2D>();
+        if (spriteRenderer == null) spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        if ( !Application.isPlaying && spriteRenderer != null && spriteRenderer.sprite == null && normalSprite != null)
+            spriteRenderer.sprite = normalSprite;
+    }
+
+    private void AutoLoadSpritesInEditor()
+    {
+#if UNITY_EDITOR
+        if (normalSprite == null)
+            normalSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/Tileset/IMG_0458.png");
+        if (crackingSprite == null)
+            crackingSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/Tileset/IMG_0459.png");
+        if (breakingSprite == null)
+            breakingSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/Tileset/IMG_0460.png");
+        if (reformingEarlySprite == null)
+            reformingEarlySprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/Tileset/23d55c94730f5902.png");
+        if (reformingSprite == null)
+            reformingSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/Tileset/f54d9acec6b489a3.png");
+#endif
     }
 
     private void Awake()
     {
+        AutoLoadSpritesInEditor();
         if (colliders == null || colliders.Length == 0) colliders = GetComponents<Collider2D>();
         if (spriteRenderer == null) spriteRenderer = GetComponentInChildren<SpriteRenderer>();
         if (animator == null) animator = GetComponentInChildren<Animator>();
@@ -139,6 +180,11 @@ public class FragilePlatform : MonoBehaviour
         {
             baseColor = spriteRenderer.color;
             originalSprite = spriteRenderer.sprite;
+            if (originalSprite == null && normalSprite != null)
+            {
+                originalSprite = normalSprite;
+                spriteRenderer.sprite = normalSprite;
+            }
         }
 
         lastBounds = ComputeBounds();
@@ -168,6 +214,11 @@ public class FragilePlatform : MonoBehaviour
         {
             case PlatformState.Cracking:
                 TickShake();
+                // Switch from Stage 2A (IMG_0459: cracked) to Stage 2B (IMG_0460: crumbling/falling) halfway through crackDuration
+                if (breakingSprite != null && stateTimer >= crackDuration * 0.5f)
+                {
+                    SetSprite(breakingSprite);
+                }
                 if (stateTimer >= crackDuration) Break();
                 break;
 
@@ -177,10 +228,16 @@ public class FragilePlatform : MonoBehaviour
                 break;
 
             case PlatformState.Reforming:
+                float progress = reformDuration > 0f ? Mathf.Clamp01(stateTimer / reformDuration) : 1f;
+                // Stage 4A (0%..50%): 23d55c94730f5902 (bottom rubble) -> Stage 4B (50%..100%): f54d9acec6b489a3 (reassembling)
+                if (progress < 0.5f && reformingEarlySprite != null)
+                    SetSprite(reformingEarlySprite);
+                else if (reformingSprite != null)
+                    SetSprite(reformingSprite);
+
                 if (fadeInOnReform && spriteRenderer != null)
                 {
-                    float t = reformDuration > 0f ? Mathf.Clamp01(stateTimer / reformDuration) : 1f;
-                    SetAlpha(t);
+                    SetAlpha(Mathf.Lerp(0.35f, 1f, progress));
                 }
                 if (stateTimer >= reformDuration) SetState(PlatformState.Normal);
                 break;
@@ -329,9 +386,10 @@ public class FragilePlatform : MonoBehaviour
                 break;
 
             case PlatformState.Cracking:
-                SetSprite(crackingSprite);
+                SetSprite(crackingSprite != null ? crackingSprite : breakingSprite);
                 SetVisible(true);
-                SetColor(baseColor * crackingTint);
+                // Only apply placeholder tint if no custom cracking sprite art is assigned
+                SetColor(crackingSprite != null ? baseColor : baseColor * crackingTint);
                 break;
 
             case PlatformState.Destroyed:
@@ -339,24 +397,25 @@ public class FragilePlatform : MonoBehaviour
                 break;
 
             case PlatformState.Reforming:
-                SetSprite(reformingSprite);
+                SetSprite(reformingEarlySprite != null ? reformingEarlySprite : reformingSprite);
                 SetVisible(true);
                 SetColor(baseColor);
-                if (fadeInOnReform) SetAlpha(0f);
+                if (fadeInOnReform) SetAlpha(0.35f);
                 break;
         }
     }
 
     private void TickShake()
     {
-        if (visualRoot == null) return;
+        Transform target = visualRoot != null ? visualRoot : null;
+        if (target == null) return;
 
         shakeTimer -= Time.deltaTime;
         if (shakeTimer > 0f) return;
 
         shakeTimer = 1f / shakeFrequency;
         Vector2 r = Random.insideUnitCircle * shakeAmplitude;
-        visualRoot.localPosition = visualBasePos + new Vector3(r.x, r.y * 0.5f, 0f);
+        target.localPosition = visualBasePos + new Vector3(r.x, r.y * 0.5f, 0f);
     }
 
     private void ResetShake()
