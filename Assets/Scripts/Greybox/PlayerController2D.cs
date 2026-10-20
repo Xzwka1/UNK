@@ -70,6 +70,8 @@ public class PlayerController2D : MonoBehaviour
     [SerializeField] private int maxWallJumps = 5;
     [Tooltip("Cooldown between OnBrittleWallSlip / OnLiquidLockoutFail feedback triggers while holding an action.")]
     [SerializeField] private float lockoutFeedbackCooldown = 0.35f;
+    [Tooltip("Rate at which stress surges from +80% to +100% (Body Overload) while sliding down after over-climbing a wall.")]
+    [SerializeField] private float wallMeltdownSlideStressRate = 60f;
 
     [Header("Impact Threshold")]
     [Tooltip("Downward speed (units/s) at or above which a landing counts as a Heavy Landing (-15f stress).")]
@@ -112,6 +114,7 @@ public class PlayerController2D : MonoBehaviour
     private bool jumpPressLatch, dashPressLatch;
 
     private bool grounded, groundIsSafe, gripping, jumpRising;
+    private bool wallMeltdownSliding;
     private int wallSide, lastWallSide, facing = 1;
 
     private float coyoteTimer, wallCoyoteTimer, jumpBufferTimer;
@@ -122,6 +125,7 @@ public class PlayerController2D : MonoBehaviour
     private bool canDash = true;
     private bool canEmergencyDash = true;
     private bool canDoubleJump = true;
+    private bool dashRefundedDuringCurrentDash;
     private int wallJumpsUsed;
 
     private Vector2 dashDir;
@@ -130,6 +134,7 @@ public class PlayerController2D : MonoBehaviour
     // ------------------------------------------------------------------ Public Read-Only Info
     public bool IsGrounded => grounded;
     public bool IsGripping => gripping;
+    public bool IsWallMeltdownSliding => wallMeltdownSliding;
     public bool IsDashing => state != MoveState.Normal;
     public bool CanDash => canDash;
     public bool CanDoubleJump => canDoubleJump;
@@ -192,8 +197,8 @@ public class PlayerController2D : MonoBehaviour
 
         switch (state)
         {
-            case MoveState.DashFreeze: TickDashFreeze(); break;
-            case MoveState.Dashing: TickDashing(dt); break;
+            case MoveState.DashFreeze: TickDashFreeze(dashPress); break;
+            case MoveState.Dashing: TickDashing(dt, dashPress); break;
             default: TickNormal(vel, dt, jumpPress, dashPress); break;
         }
 
@@ -211,17 +216,22 @@ public class PlayerController2D : MonoBehaviour
         }
     }
 
-    /// <summary>Refills 1 Air Dash immediately (called by BreakingBarrier impact and Polarity Snap).</summary>
+    /// <summary>Refills 1 Air Dash immediately with 0 cooldown (called by BreakingBarrier impact and Polarity Snap).</summary>
     public void RefundAirDash()
     {
         canDash = true;
+        dashCooldownTimer = 0f;
+        dashRefundedDuringCurrentDash = true;
     }
 
-    /// <summary>Callback when Polarity Snap Bonus triggers: refills both canDash and canDoubleJump mid-air.</summary>
+    /// <summary>Callback when Polarity Snap Bonus triggers: refills Dash, Emergency Dash, and Double-Jump mid-air.</summary>
     private void OnPolaritySnapBonus()
     {
         canDash = true;
+        canEmergencyDash = true;
         canDoubleJump = true;
+        dashCooldownTimer = 0f;
+        dashRefundedDuringCurrentDash = true;
     }
 
     /// <summary>Clears every timer / counter and returns the player to a clean idle state.</summary>
@@ -234,8 +244,9 @@ public class PlayerController2D : MonoBehaviour
         canDash = true;
         canEmergencyDash = true;
         canDoubleJump = true;
+        dashRefundedDuringCurrentDash = false;
         wallJumpsUsed = 0;
-        gripping = jumpRising = false;
+        gripping = jumpRising = wallMeltdownSliding = false;
         lastVelocityY = 0f;
         jumpPressLatch = dashPressLatch = false;
         input = default;
@@ -251,8 +262,8 @@ public class PlayerController2D : MonoBehaviour
     {
         if (!controlEnabled || stress == null || stress.IsOverloaded) return;
 
-        // 1) Breaking Barrier Impact while Dashing: destroy barrier, -30f stress, refund 1 Air Dash.
-        if (state == MoveState.Dashing)
+        // 1) Breaking Barrier Impact while Dashing: destroy barrier, -30f stress, refund 1 Air Dash immediately.
+        if (state != MoveState.Normal)
         {
             var barrier = c.collider.GetComponentInParent<BreakingBarrier>();
             if (barrier != null)
@@ -262,16 +273,50 @@ public class PlayerController2D : MonoBehaviour
             }
         }
 
-        // 2) Heavy Landing: falling onto solid ground at or faster than heavyLandingVelocityThreshold -> -15f stress.
+        // 2) Heavy Landing: falling onto solid ground at or faster than heavyLandingVelocityThreshold -> -15f stress (or -100f shatter if BrittleLocked).
         if (c.contactCount > 0 && c.GetContact(0).normal.y > 0.5f && lastVelocityY <= -heavyLandingVelocityThreshold)
         {
             stress.ApplyHeavyLandingStress();
         }
     }
 
+    private void OnCollisionStay2D(Collision2D c)
+    {
+        if (!controlEnabled || stress == null || stress.IsOverloaded) return;
+
+        // Also break if the player started dashing while already touching the BreakingBarrier
+        if (state != MoveState.Normal)
+        {
+            var barrier = c.collider.GetComponentInParent<BreakingBarrier>();
+            if (barrier != null)
+            {
+                barrier.Break(this);
+            }
+        }
+    }
+
     // ------------------------------------------------------------------ Normal Movement & Lockout Rules
     private void TickNormal(Vector2 vel, float dt, bool jumpPress, bool dashPress)
     {
+        // --- Wall Meltdown Slide (+80% reached while climbing wall): slide down & melt into Body Overload (+100%) ---
+        if (wallMeltdownSliding)
+        {
+            gripping = wallSide != 0;
+            rb.gravityScale = 0f;
+            rb.linearVelocity = new Vector2(0f, -slideSpeed);
+
+            // Surge stress from +80% to +100% while sliding down (or immediately trigger +100% if touching ground/leaving wall)
+            if (grounded || wallSide == 0)
+            {
+                stress.ModifyStress(100f, false);
+            }
+            else
+            {
+                stress.ModifyStress(wallMeltdownSlideStressRate * dt, false);
+            }
+            return;
+        }
+
         float h = Mathf.Abs(input.Move.x) > 0.1f ? Mathf.Sign(input.Move.x) : 0f;
         if (h != 0f) facing = (int)h;
         lockoutFeedbackTimer = Mathf.Max(0f, lockoutFeedbackTimer - dt);
@@ -361,7 +406,7 @@ public class PlayerController2D : MonoBehaviour
 
     /// <summary>
     /// Wall vertical velocity & Dual-Polarity Stress modifiers:
-    ///   - Ctrl + W (Climb Up): +30f/sec. Locked out when stress >= +80f (Critical Meltdown).
+    ///   - Ctrl + W (Climb Up): +30f/sec. When stress reaches >= +80f (Critical Meltdown), triggers Wall Meltdown Slide -> Body Overload!
     ///   - Ctrl + S (Slide Down): -35f/sec.
     ///   - Ctrl only (Hold Still): -25f/sec.
     /// </summary>
@@ -371,20 +416,16 @@ public class PlayerController2D : MonoBehaviour
 
         if (v > 0f)
         {
-            // Critical Meltdown (+80% to +99.9%): Wall-Climb Up is strictly locked out!
+            stress.ApplyWallClimbStress(dt); // +30f / sec
+
+            // If climbing pushes stress to >= +80% (or player tries to climb at >= +80%),
+            // slime loses viscosity, slides down the wall, melts, and dies of Body Overload (+100%)!
             if (stress.IsLiquidLocked)
             {
-                if (lockoutFeedbackTimer <= 0f)
-                {
-                    stress.NotifyLiquidLockoutFail();
-                    lockoutFeedbackTimer = lockoutFeedbackCooldown;
-                }
-                // Cannot climb up, but can still hold still (-25f/s) to cool down below +80%
-                stress.ApplyWallHoldStress(dt);
-                return 0f;
+                wallMeltdownSliding = true;
+                return -slideSpeed;
             }
 
-            stress.ApplyWallClimbStress(dt); // +30f / sec
             return climbSpeed;
         }
 
@@ -429,19 +470,21 @@ public class PlayerController2D : MonoBehaviour
             return true;
         }
 
-        // 2) Wall-Jump: Ctrl released + direction away from wall + jump.
+        // 2) Wall-Jump: when touching/within wall coyote of a wall.
         //    Locked out in Critical Crystallization (<= -80%). Allowed in Critical Meltdown (>= +80%) as an escape!
-        if (wallCoyoteTimer > 0f && lastWallSide != 0 && !input.GripHeld
-            && h == -lastWallSide && wallJumpsUsed < maxWallJumps)
+        if ((wallCoyoteTimer > 0f || wallSide != 0) && lastWallSide != 0 && wallJumpsUsed < maxWallJumps)
         {
             if (stress.IsBrittleLocked)
             {
                 stress.NotifyBrittleWallSlip();
+                jumpBufferTimer = 0f;
                 return false;
             }
 
-            vel = new Vector2(-lastWallSide * wallJumpSpeedX, VelocityForHeight(wallJumpHeight));
-            facing = -lastWallSide;
+            int kickDir = -lastWallSide;
+            vel = new Vector2(kickDir * wallJumpSpeedX, VelocityForHeight(wallJumpHeight));
+            facing = kickDir;
+            gripping = false;
             wallJumpsUsed++;
             wallCoyoteTimer = 0f;
             wallJumpLockTimer = wallJumpControlLock;
@@ -485,12 +528,14 @@ public class PlayerController2D : MonoBehaviour
         Vector2 dir = input.Move;
         if (dir == Vector2.zero) dir = new Vector2(facing, 0f);
         dashDir = dir.normalized;
+        if (Mathf.Abs(dashDir.x) > 0.1f) facing = (int)Mathf.Sign(dashDir.x);
 
         if (isEmergencyDash)
             canEmergencyDash = false;
         else
             canDash = false;
 
+        dashRefundedDuringCurrentDash = false;
         state = MoveState.DashFreeze;
         dashFreezeTimer = dashFreezeDuration;
 
@@ -508,10 +553,15 @@ public class PlayerController2D : MonoBehaviour
             stress.ApplyEmergencyAirDashStress();
         else
             stress.ApplyNormalDashStress();
+
+        // Break any BreakingBarrier already in contact or directly in front of the dash
+        BreakBarriersAlongStep(dashDir * (dashSpeed * Time.fixedDeltaTime));
     }
 
-    private void TickDashFreeze()
+    private void TickDashFreeze(bool dashPress)
     {
+        if (dashPress) dashPressLatch = true; // Preserve any rapid re-press during freeze
+
         rb.linearVelocity = Vector2.zero;
         rb.gravityScale = 0f;
 
@@ -519,18 +569,38 @@ public class PlayerController2D : MonoBehaviour
         if (dashFreezeTimer > 0f) return;
 
         if (resampleDirectionAfterFreeze && input.Move != Vector2.zero)
+        {
             dashDir = input.Move.normalized;
+            if (Mathf.Abs(dashDir.x) > 0.1f) facing = (int)Mathf.Sign(dashDir.x);
+        }
 
         state = MoveState.Dashing;
         dashTimer = dashDuration;
+        BreakBarriersAlongStep(dashDir * (dashSpeed * Time.fixedDeltaTime));
         rb.linearVelocity = dashDir * dashSpeed;
     }
 
-    private void TickDashing(float dt)
+    private void TickDashing(float dt, bool dashPress)
     {
         rb.gravityScale = 0f;
 
         Vector2 v = dashDir * dashSpeed;
+        BreakBarriersAlongStep(v * dt);
+
+        // If a BreakingBarrier (or Polarity Snap) refunded our Dash, allow chaining into a new Dash immediately mid-dash!
+        if (dashPress && dashRefundedDuringCurrentDash && canDash)
+        {
+            if (stress.IsLiquidLocked)
+            {
+                stress.NotifyLiquidLockoutFail();
+            }
+            else
+            {
+                BeginDash(isEmergencyDash: false);
+                return;
+            }
+        }
+
         CornerCorrect(v, dt, true, true);
         rb.linearVelocity = v;
 
@@ -538,8 +608,29 @@ public class PlayerController2D : MonoBehaviour
         if (dashTimer > 0f) return;
 
         state = MoveState.Normal;
-        dashCooldownTimer = dashCooldown;
+        // If we smashed a BreakingBarrier during this dash, set cooldown to 0 so the next dash is available immediately!
+        dashCooldownTimer = dashRefundedDuringCurrentDash ? 0f : dashCooldown;
+        dashRefundedDuringCurrentDash = false;
         rb.linearVelocity = dashDir * dashSpeed * dashExitSpeedMultiplier;
+    }
+
+    /// <summary>Proactively breaks any BreakingBarrier overlapping the player's dash path so momentum isn't stopped.</summary>
+    private void BreakBarriersAlongStep(Vector2 step)
+    {
+        Vector3 s = transform.lossyScale;
+        Vector2 size = new Vector2(col.size.x * Mathf.Abs(s.x), col.size.y * Mathf.Abs(s.y)) + Vector2.one * 0.08f;
+        Vector2 center = rb.position + new Vector2(col.offset.x * s.x, col.offset.y * s.y) + step;
+
+        int n = Physics2D.OverlapCapsule(center, size, col.direction, 0f, filter, hits);
+        for (int i = 0; i < n; i++)
+        {
+            if (hits[i] == null || hits[i].attachedRigidbody == rb) continue;
+            var barrier = hits[i].GetComponentInParent<BreakingBarrier>();
+            if (barrier != null)
+            {
+                barrier.Break(this);
+            }
+        }
     }
 
     // ------------------------------------------------------------------ Environment Sensing & Timers
@@ -587,10 +678,13 @@ public class PlayerController2D : MonoBehaviour
             coyoteTimer = Mathf.Max(0f, coyoteTimer - dt);
         }
 
-        if (wallSide != 0 && !stress.IsBrittleLocked)
+        if (wallSide != 0)
         {
             lastWallSide = wallSide;
-            wallCoyoteTimer = wallCoyoteTime;
+            if (!stress.IsBrittleLocked)
+                wallCoyoteTimer = wallCoyoteTime;
+            else
+                wallCoyoteTimer = 0f;
         }
         else
         {

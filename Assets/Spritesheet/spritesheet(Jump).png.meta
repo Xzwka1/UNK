@@ -128,7 +128,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: spritesheet(Jump)_0
+      name: spritesheet(Jump)_4
       rect:
         serializedVersion: 2
         x: 7
@@ -197,8 +197,8 @@ TextureImporter:
       name: spritesheet(Jump)_3
       rect:
         serializedVersion: 2
-        x: 515
-        y: 902
+        x: 512
+        y: 905
         width: 486
         height: 619
       alignment: 7
@@ -216,11 +216,11 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Jump)_4
+      name: spritesheet(Jump)_5
       rect:
         serializedVersion: 2
-        x: 5
-        y: 489
+        x: 2
+        y: 486
         width: 449
         height: 547
       alignment: 7
@@ -238,7 +238,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Jump)_5
+      name: spritesheet(Jump)_6
       rect:
         serializedVersion: 2
         x: 7
@@ -273,12 +273,12 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      spritesheet(Jump)_0: 6484090611912793961
       spritesheet(Jump)_1: -543447488720119953
       spritesheet(Jump)_2: 1550563757460240892
       spritesheet(Jump)_3: 1052125022975349936
-      spritesheet(Jump)_4: -7017577909558467569
-      spritesheet(Jump)_5: 6433322762236385516
+      spritesheet(Jump)_4: 6484090611912793961
+      spritesheet(Jump)_5: -7017577909558467569
+      spritesheet(Jump)_6: 6433322762236385516
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

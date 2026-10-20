@@ -152,15 +152,15 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: spritesheet(Wall-Climb01)_0
+      name: spritesheet(Wall-Climb01)_4
       rect:
         serializedVersion: 2
         x: 50
-        y: 1515
+        y: 1518
         width: 461
         height: 525
-      alignment: 3
-      pivot: {x: 1, y: 1}
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -181,8 +181,8 @@ TextureImporter:
         y: 1543
         width: 268
         height: 497
-      alignment: 3
-      pivot: {x: 1, y: 1}
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -196,15 +196,15 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Wall-Climb01)_11
+      name: spritesheet(Wall-Climb01)_3
       rect:
         serializedVersion: 2
         x: 617
         y: 892
         width: 251
         height: 616
-      alignment: 3
-      pivot: {x: 1, y: 1}
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -218,15 +218,15 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Wall-Climb01)_13
+      name: spritesheet(Wall-Climb01)_2
       rect:
         serializedVersion: 2
         x: 6
         y: 344
         width: 180
         height: 540
-      alignment: 3
-      pivot: {x: 1, y: 1}
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -253,15 +253,12 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      spritesheet(Wall-Climb01)_0: -6112171144730652913
       spritesheet(Wall-Climb01)_1: 1736560343275787088
       spritesheet(Wall-Climb01)_10: -2409560537556968385
-      spritesheet(Wall-Climb01)_11: -1652819929757693449
       spritesheet(Wall-Climb01)_12: -331644171430164118
-      spritesheet(Wall-Climb01)_13: -7265398515626776105
-      spritesheet(Wall-Climb01)_2: 2876181934874638752
-      spritesheet(Wall-Climb01)_3: -2121808548576015788
-      spritesheet(Wall-Climb01)_4: -7872614980221229361
+      spritesheet(Wall-Climb01)_2: -7265398515626776105
+      spritesheet(Wall-Climb01)_3: -1652819929757693449
+      spritesheet(Wall-Climb01)_4: -6112171144730652913
       spritesheet(Wall-Climb01)_5: 5842674506771565817
       spritesheet(Wall-Climb01)_6: 7501801791841443148
       spritesheet(Wall-Climb01)_7: -1774060050544635321

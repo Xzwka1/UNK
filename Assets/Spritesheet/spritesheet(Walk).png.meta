@@ -128,7 +128,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: spritesheet(Walk)_0
+      name: spritesheet(Walk)_5
       rect:
         serializedVersion: 2
         x: 8
@@ -154,7 +154,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 394
-        y: 1513
+        y: 1516
         width: 370
         height: 527
       alignment: 7
@@ -194,7 +194,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Walk)_3
+      name: spritesheet(Walk)_4
       rect:
         serializedVersion: 2
         x: 388
@@ -216,7 +216,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Walk)_4
+      name: spritesheet(Walk)_3
       rect:
         serializedVersion: 2
         x: 8
@@ -238,7 +238,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Walk)_5
+      name: spritesheet(Walk)_6
       rect:
         serializedVersion: 2
         x: 389
@@ -273,12 +273,12 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      spritesheet(Walk)_0: 4415376869768603440
       spritesheet(Walk)_1: 610453009645642548
       spritesheet(Walk)_2: 7927029639261474602
-      spritesheet(Walk)_3: 6428167999487772967
-      spritesheet(Walk)_4: 1846934741944027862
-      spritesheet(Walk)_5: 6144832766458312368
+      spritesheet(Walk)_3: 1846934741944027862
+      spritesheet(Walk)_4: 6428167999487772967
+      spritesheet(Walk)_5: 4415376869768603440
+      spritesheet(Walk)_6: 6144832766458312368
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

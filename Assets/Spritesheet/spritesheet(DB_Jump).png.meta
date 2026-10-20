@@ -134,7 +134,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: spritesheet(DB_Jump)_0
+      name: spritesheet(DB_Jump)_6
       rect:
         serializedVersion: 2
         x: 7
@@ -156,7 +156,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(DB_Jump)_1
+      name: spritesheet(DB_Jump)_3
       rect:
         serializedVersion: 2
         x: 537
@@ -178,7 +178,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(DB_Jump)_2
+      name: spritesheet(DB_Jump)_1
       rect:
         serializedVersion: 2
         x: 6
@@ -200,11 +200,11 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(DB_Jump)_3
+      name: spritesheet(DB_Jump)_4
       rect:
         serializedVersion: 2
         x: 538
-        y: 1195
+        y: 1198
         width: 431
         height: 420
       alignment: 7
@@ -222,11 +222,11 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(DB_Jump)_4
+      name: spritesheet(DB_Jump)_8
       rect:
         serializedVersion: 2
         x: 7
-        y: 528
+        y: 531
         width: 391
         height: 402
       alignment: 7
@@ -244,11 +244,11 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(DB_Jump)_5
+      name: spritesheet(DB_Jump)_2
       rect:
         serializedVersion: 2
         x: 434
-        y: 734
+        y: 737
         width: 410
         height: 453
       alignment: 7
@@ -266,11 +266,11 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(DB_Jump)_6
+      name: spritesheet(DB_Jump)_5
       rect:
         serializedVersion: 2
-        x: 7
-        y: 38
+        x: 10
+        y: 41
         width: 368
         height: 480
       alignment: 7
@@ -323,14 +323,14 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      spritesheet(DB_Jump)_0: -5923010633672236938
-      spritesheet(DB_Jump)_1: 431701777388029997
-      spritesheet(DB_Jump)_2: -983509820605516130
-      spritesheet(DB_Jump)_3: 194511198977097170
-      spritesheet(DB_Jump)_4: 6412686449599953649
-      spritesheet(DB_Jump)_5: -2734566225489311473
-      spritesheet(DB_Jump)_6: -2416158851040932663
+      spritesheet(DB_Jump)_1: -983509820605516130
+      spritesheet(DB_Jump)_2: -2734566225489311473
+      spritesheet(DB_Jump)_3: 431701777388029997
+      spritesheet(DB_Jump)_4: 194511198977097170
+      spritesheet(DB_Jump)_5: -2416158851040932663
+      spritesheet(DB_Jump)_6: -5923010633672236938
       spritesheet(DB_Jump)_7: -5387706352650216353
+      spritesheet(DB_Jump)_8: 6412686449599953649
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

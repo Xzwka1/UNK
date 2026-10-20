@@ -1,8 +1,14 @@
 using UnityEngine;
 
 /// <summary>
-/// Connects PlayerController2D, PlayerStress, and PlayerRespawn to the character's Animator (_Player.controller)
-/// and SpriteRenderer. Handles 0-latency state switching, sprite flipping, and Dual-Polarity visual feedback.
+/// Feeds PlayerController2D / PlayerStress / PlayerRespawn state into the Animator parameters of
+/// Assets/Player_Controller/_Player.controller. All state switching is done by the transitions inside the
+/// Animator graph (open the Animator window to see / tweak them). This script also flips the sprite.
+///
+/// Parameters driven:
+///   Float   SpeedX, VelocityY, Stress
+///   Bool    IsGrounded, IsGripping, IsDashing, IsDead
+///   Trigger DoubleJump, DashFail, BrittleSlip
 /// </summary>
 public class PlayerAnimator2D : MonoBehaviour
 {
@@ -15,31 +21,11 @@ public class PlayerAnimator2D : MonoBehaviour
     [SerializeField] private SpriteRenderer spriteRenderer;
     [SerializeField] private SpriteRenderer crystalCrackOverlay;
 
-    [Header("Animation Tuning")]
-    [Tooltip("Horizontal speed above which 'Idle' transitions to 'Walk'.")]
-    [SerializeField] private float walkSpeedThreshold = 0.15f;
-    [Tooltip("Horizontal speed above which 'Walk' transitions to 'Run'.")]
-    [SerializeField] private float runSpeedThreshold = 4.5f;
-    [Tooltip("How long lockout fail animations ('Dash(ไม่ได้)' / 'Slime_ร่างแข็ง') display when triggered.")]
-    [SerializeField] private float lockoutAnimDuration = 0.22f;
+    [Header("Facing")]
     [Tooltip("Invert sprite horizontal flip if artwork faces left by default (false = artwork faces right).")]
     [SerializeField] private bool artworkFacesLeft = false;
 
-    // Animator state hashes matching Assets/Player_Controller/_Player.controller
-    private static readonly int StateIdle        = Animator.StringToHash("Idle");
-    private static readonly int StateWalk        = Animator.StringToHash("Walk");
-    private static readonly int StateRun         = Animator.StringToHash("Run");
-    private static readonly int StateJump        = Animator.StringToHash("Jump");
-    private static readonly int StateDoubleJump  = Animator.StringToHash("DB_Jump");
-    private static readonly int StateDash        = Animator.StringToHash("Dash");
-    private static readonly int StateDashFail    = Animator.StringToHash("Dash(ไม่ได้)");
-    private static readonly int StateWallHold    = Animator.StringToHash("Wall_climb01");
-    private static readonly int StateWallClimb   = Animator.StringToHash("Wall_climb02");
-    private static readonly int StateWallStrain  = Animator.StringToHash("Wall_climb03");
-    private static readonly int StateDead        = Animator.StringToHash("Dead");
-    private static readonly int StateBrittle     = Animator.StringToHash("Slime_ร่างแข็ง");
-
-    // Animator parameter hashes
+    // Animator parameter hashes (must match _Player.controller)
     private static readonly int ParamSpeedX      = Animator.StringToHash("SpeedX");
     private static readonly int ParamVelocityY   = Animator.StringToHash("VelocityY");
     private static readonly int ParamStress      = Animator.StringToHash("Stress");
@@ -47,12 +33,12 @@ public class PlayerAnimator2D : MonoBehaviour
     private static readonly int ParamIsGripping  = Animator.StringToHash("IsGripping");
     private static readonly int ParamIsDashing   = Animator.StringToHash("IsDashing");
     private static readonly int ParamIsDead      = Animator.StringToHash("IsDead");
+    private static readonly int TrigDoubleJump   = Animator.StringToHash("DoubleJump");
+    private static readonly int TrigDashFail     = Animator.StringToHash("DashFail");
+    private static readonly int TrigBrittleSlip  = Animator.StringToHash("BrittleSlip");
+    private static readonly int StateIdle        = Animator.StringToHash("Idle");
 
-    private int currentStateHash;
     private bool wasCanDoubleJump = true;
-    private bool playingDoubleJumpAnim;
-    private float lockoutOverrideTimer;
-    private int lockoutOverrideStateHash;
 
     public void BindReferences(
         PlayerController2D ctrl,
@@ -92,6 +78,8 @@ public class PlayerAnimator2D : MonoBehaviour
             Transform overlayTf = vis.Find("CrystalOverlay");
             if (overlayTf != null) crystalCrackOverlay = overlayTf.GetComponent<SpriteRenderer>();
         }
+        if (crystalCrackOverlay != null)
+            crystalCrackOverlay.enabled = false;
     }
 
     private void OnEnable()
@@ -103,15 +91,8 @@ public class PlayerAnimator2D : MonoBehaviour
         {
             stress.OnLiquidLockoutFail.AddListener(OnLiquidLockoutFail);
             stress.OnBrittleWallSlip.AddListener(OnBrittleWallSlip);
-            stress.OnCrystalShatterOverload.AddListener(OnCrystalShatterOverload);
-            stress.OnMeltdownOverload.AddListener(OnMeltdownOverload);
         }
-
-        if (respawn != null)
-        {
-            respawn.Died += OnPlayerDied;
-            respawn.Respawned += OnPlayerRespawned;
-        }
+        if (respawn != null) respawn.Respawned += OnPlayerRespawned;
     }
 
     private void OnDisable()
@@ -120,26 +101,39 @@ public class PlayerAnimator2D : MonoBehaviour
         {
             stress.OnLiquidLockoutFail.RemoveListener(OnLiquidLockoutFail);
             stress.OnBrittleWallSlip.RemoveListener(OnBrittleWallSlip);
-            stress.OnCrystalShatterOverload.RemoveListener(OnCrystalShatterOverload);
-            stress.OnMeltdownOverload.RemoveListener(OnMeltdownOverload);
         }
-
-        if (respawn != null)
-        {
-            respawn.Died -= OnPlayerDied;
-            respawn.Respawned -= OnPlayerRespawned;
-        }
+        if (respawn != null) respawn.Respawned -= OnPlayerRespawned;
     }
+
+    private bool HasAnimator => animator != null && animator.runtimeAnimatorController != null;
 
     private void LateUpdate()
     {
         if (controller == null || rb == null) return;
 
         UpdateFacingFlip();
-        UpdateAnimatorParameters();
+        if (!HasAnimator) return;
 
-        int targetState = ResolveTargetState();
-        PlayState(targetState);
+        Vector2 vel = rb.linearVelocity;
+        bool isDead = (respawn != null && respawn.IsDead) || (stress != null && stress.IsOverloaded);
+
+        animator.SetFloat(ParamSpeedX, Mathf.Abs(vel.x));
+        animator.SetFloat(ParamVelocityY, vel.y);
+        animator.SetFloat(ParamStress, stress != null ? stress.Current : 0f);
+        animator.SetBool(ParamIsGrounded, controller.IsGrounded);
+        animator.SetBool(ParamIsGripping, controller.IsGripping);
+        animator.SetBool(ParamIsDashing, controller.IsDashing);
+        animator.SetBool(ParamIsDead, isDead);
+
+        // Double-Jump: fires the moment the air-jump quota is consumed while airborne.
+        bool canDJ = controller.CanDoubleJump;
+        if (!isDead && !controller.IsGrounded && !controller.IsGripping && wasCanDoubleJump && !canDJ)
+            animator.SetTrigger(TrigDoubleJump);
+        wasCanDoubleJump = canDJ;
+
+        // Don't let a stale trigger fire later (e.g. after landing).
+        if (controller.IsGrounded || controller.IsGripping)
+            animator.ResetTrigger(TrigDoubleJump);
     }
 
     private void UpdateFacingFlip()
@@ -157,127 +151,24 @@ public class PlayerAnimator2D : MonoBehaviour
             crystalCrackOverlay.flipX = flip;
     }
 
-    private void UpdateAnimatorParameters()
-    {
-        if (animator == null || animator.runtimeAnimatorController == null) return;
-
-        Vector2 vel = rb.linearVelocity;
-        animator.SetFloat(ParamSpeedX, Mathf.Abs(vel.x));
-        animator.SetFloat(ParamVelocityY, vel.y);
-        animator.SetFloat(ParamStress, stress != null ? stress.Current : 0f);
-        animator.SetBool(ParamIsGrounded, controller.IsGrounded);
-        animator.SetBool(ParamIsGripping, controller.IsGripping);
-        animator.SetBool(ParamIsDashing, controller.IsDashing);
-        animator.SetBool(ParamIsDead, respawn != null && respawn.IsDead);
-    }
-
-    private int ResolveTargetState()
-    {
-        // 1. Dead / Overload state
-        bool isDead = (respawn != null && respawn.IsDead) || (stress != null && stress.IsOverloaded);
-        if (isDead)
-        {
-            if (stress != null && stress.Current <= -100f)
-                return StateBrittle;
-            return StateDead;
-        }
-
-        // Track Double-Jump consumption while airborne
-        if (controller.IsGrounded || controller.IsGripping || controller.IsDashing)
-        {
-            playingDoubleJumpAnim = false;
-        }
-        else if (wasCanDoubleJump && !controller.CanDoubleJump)
-        {
-            playingDoubleJumpAnim = true;
-        }
-        wasCanDoubleJump = controller.CanDoubleJump;
-
-        // 2. Brief lockout feedback override ("Dash(ไม่ได้)" or "Slime_ร่างแข็ง")
-        if (lockoutOverrideTimer > 0f)
-        {
-            lockoutOverrideTimer -= Time.deltaTime;
-            if (!controller.IsDashing)
-                return lockoutOverrideStateHash;
-        }
-
-        // 3. Dash state
-        if (controller.IsDashing)
-            return StateDash;
-
-        // 4. Wall Grip / Climb / Slide state
-        if (controller.IsGripping)
-        {
-            float vy = rb.linearVelocity.y;
-            bool isStrainedTensile = stress != null && stress.Current >= stress.StrainedThreshold;
-
-            if (vy > 0.1f)
-                return isStrainedTensile ? StateWallStrain : StateWallClimb;
-
-            return isStrainedTensile ? StateWallStrain : StateWallHold;
-        }
-
-        // 5. Airborne (Jump vs Double-Jump)
-        if (!controller.IsGrounded)
-            return playingDoubleJumpAnim ? StateDoubleJump : StateJump;
-
-        // 6. Grounded (Idle / Walk / Run)
-        float speedX = Mathf.Abs(rb.linearVelocity.x);
-        if (speedX >= runSpeedThreshold)
-            return StateRun;
-        if (speedX >= walkSpeedThreshold)
-            return StateWalk;
-
-        return StateIdle;
-    }
-
-    private void PlayState(int stateHash, bool forceRestart = false)
-    {
-        if (animator == null || animator.runtimeAnimatorController == null) return;
-        if (!forceRestart && currentStateHash == stateHash) return;
-
-        currentStateHash = stateHash;
-        animator.Play(stateHash, 0, 0f);
-    }
-
     private void OnLiquidLockoutFail()
     {
-        lockoutOverrideStateHash = StateDashFail;
-        lockoutOverrideTimer = lockoutAnimDuration;
-        PlayState(StateDashFail, forceRestart: true);
+        if (HasAnimator) animator.SetTrigger(TrigDashFail);
     }
 
     private void OnBrittleWallSlip()
     {
-        lockoutOverrideStateHash = StateBrittle;
-        lockoutOverrideTimer = lockoutAnimDuration;
-        PlayState(StateBrittle, forceRestart: true);
-    }
-
-    private void OnCrystalShatterOverload()
-    {
-        lockoutOverrideTimer = 0f;
-        PlayState(StateBrittle, forceRestart: true);
-    }
-
-    private void OnMeltdownOverload()
-    {
-        lockoutOverrideTimer = 0f;
-        PlayState(StateDead, forceRestart: true);
-    }
-
-    private void OnPlayerDied()
-    {
-        lockoutOverrideTimer = 0f;
-        int deadState = (stress != null && stress.Current <= -100f) ? StateBrittle : StateDead;
-        PlayState(deadState, forceRestart: true);
+        if (HasAnimator) animator.SetTrigger(TrigBrittleSlip);
     }
 
     private void OnPlayerRespawned()
     {
-        lockoutOverrideTimer = 0f;
-        playingDoubleJumpAnim = false;
         wasCanDoubleJump = true;
-        PlayState(StateIdle, forceRestart: true);
+        if (!HasAnimator) return;
+        animator.ResetTrigger(TrigDoubleJump);
+        animator.ResetTrigger(TrigDashFail);
+        animator.ResetTrigger(TrigBrittleSlip);
+        animator.SetBool(ParamIsDead, false);
+        animator.Play(StateIdle, 0, 0f);
     }
 }

@@ -134,15 +134,15 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: spritesheet(Wall-Climb03)_0
+      name: spritesheet(Wall-Climb03)_4
       rect:
         serializedVersion: 2
         x: 8
         y: 1540
         width: 341
         height: 500
-      alignment: 3
-      pivot: {x: 1, y: 1}
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -156,15 +156,15 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Wall-Climb03)_3
+      name: spritesheet(Wall-Climb03)_2
       rect:
         serializedVersion: 2
         x: 427
         y: 1540
         width: 341
         height: 500
-      alignment: 3
-      pivot: {x: 1, y: 1}
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -178,15 +178,15 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Wall-Climb03)_6
+      name: spritesheet(Wall-Climb03)_1
       rect:
         serializedVersion: 2
         x: 8
         y: 1023
         width: 345
         height: 505
-      alignment: 3
-      pivot: {x: 1, y: 1}
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -200,15 +200,15 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Wall-Climb03)_7
+      name: spritesheet(Wall-Climb03)_3
       rect:
         serializedVersion: 2
         x: 365
         y: 1023
         width: 345
         height: 505
-      alignment: 3
-      pivot: {x: 1, y: 1}
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -235,14 +235,11 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      spritesheet(Wall-Climb03)_0: -6272092368228073337
-      spritesheet(Wall-Climb03)_1: -3114615126112198375
-      spritesheet(Wall-Climb03)_2: -328625463021763316
-      spritesheet(Wall-Climb03)_3: 3743107211621683472
-      spritesheet(Wall-Climb03)_4: -4897165112432592815
+      spritesheet(Wall-Climb03)_1: -3284631920802816482
+      spritesheet(Wall-Climb03)_2: 3743107211621683472
+      spritesheet(Wall-Climb03)_3: 8388437843694120126
+      spritesheet(Wall-Climb03)_4: -6272092368228073337
       spritesheet(Wall-Climb03)_5: -8802438425605308725
-      spritesheet(Wall-Climb03)_6: -3284631920802816482
-      spritesheet(Wall-Climb03)_7: 8388437843694120126
       spritesheet(Wall-Climb03)_8: 78947513
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0

@@ -69,14 +69,14 @@ public class PlayerStress : MonoBehaviour
 
     // ------------------------------------------------------------------ Inspector: Visuals & Death Setup
     [Header("Visual Hooks & Overlays")]
-    [Tooltip("Main character SpriteRenderer (used for Polarity Snap white flash and Crystal Shatter hide). Auto-found if empty.")]
+    [Tooltip("Main character SpriteRenderer (used for Polarity Snap white flash and stress tint). Auto-found if empty.")]
     [SerializeField] private SpriteRenderer playerSpriteRenderer;
     [Tooltip("Duration of the white flash when Polarity Snap triggers (0.1s).")]
     [SerializeField] private float polaritySnapFlashDuration = 0.1f;
 
-    [Tooltip("Overlay SpriteRenderer for crystal cracks. Enabled when currentStress < -50f with alpha scaled to -100f.")]
+    [Tooltip("Optional overlay SpriteRenderer (kept disabled during locomotion so it doesn't double-render over animations).")]
     [SerializeField] private SpriteRenderer crystalCrackOverlay;
-    [Tooltip("Optional sprite shown for 1 frame right before Crystal Shatter Overload hides the renderer.")]
+    [Tooltip("Sprite shown when Crystal Shatter Overload (-100%) freezes the character solid.")]
     [SerializeField] private Sprite brittleShatterFrameSprite;
     [Tooltip("ParticleSystem played on Crystal Shatter Overload (-100%).")]
     [SerializeField] private ParticleSystem crystalShatterParticles;
@@ -96,13 +96,13 @@ public class PlayerStress : MonoBehaviour
     [Header("Hard Lockout Events (±80%)")]
     [Tooltip("Fired when pressing Dash or Double-Jump at >= +80f stress. Show flat puddle frame & play splash SFX.")]
     public UnityEvent OnLiquidLockoutFail;
-    [Tooltip("Fired when touching a wall at <= -80f stress. Show rigid block frame & play stone scrape SFX.")]
+    [Tooltip("Fired when touching a wall at <= -80f stress. Show crystal crack frame & play stone scrape SFX.")]
     public UnityEvent OnBrittleWallSlip;
 
     [Header("Dual Overload Death Events (±100%)")]
     [Tooltip("Fired at +100% Stress (Meltdown Overload). Trigger slime explosion animation & SFX.")]
     public UnityEvent OnMeltdownOverload;
-    [Tooltip("Fired at -100% Stress (Crystal Shatter Overload). Trigger glass shatter SFX.")]
+    [Tooltip("Fired at -100% Stress (Crystal Shatter Overload). Trigger solid crystal death animation & glass shatter SFX.")]
     public UnityEvent OnCrystalShatterOverload;
 
     [Header("Stage & Impact Events")]
@@ -166,7 +166,7 @@ public class PlayerStress : MonoBehaviour
 
         if (playerSpriteRenderer != null)
         {
-            baseSpriteColor = playerSpriteRenderer.color;
+            baseSpriteColor = Color.white;
             baseSprite = playerSpriteRenderer.sprite;
         }
 
@@ -179,7 +179,7 @@ public class PlayerStress : MonoBehaviour
         if (mainRenderer != null)
         {
             playerSpriteRenderer = mainRenderer;
-            baseSpriteColor = mainRenderer.color;
+            baseSpriteColor = Color.white;
             baseSprite = mainRenderer.sprite;
         }
         if (crackOverlay != null)
@@ -202,11 +202,11 @@ public class PlayerStress : MonoBehaviour
         float previousStress = currentStress;
         currentStress = Mathf.Clamp(currentStress + amount, minStress, maxStress);
 
-        // --- Check Polarity Snap Bonus (instant action crossing 0f from strained zone >= +50 or <= -50) ---
+        // --- Check Polarity Snap Bonus (instant action crossing/reaching 0f from strained zone >= +50 or <= -50) ---
         if (isInstantAction)
         {
-            bool crossedFromPositive = previousStress >= strainedThreshold && currentStress < 0f;
-            bool crossedFromNegative = previousStress <= -strainedThreshold && currentStress > 0f;
+            bool crossedFromPositive = previousStress >= strainedThreshold && currentStress <= 0f;
+            bool crossedFromNegative = previousStress <= -strainedThreshold && currentStress >= 0f;
 
             if (crossedFromPositive || crossedFromNegative)
             {
@@ -253,7 +253,15 @@ public class PlayerStress : MonoBehaviour
     public void ApplyHeavyLandingStress()
     {
         OnHardLandingImpact?.Invoke();
-        ModifyStress(heavyLandingStress, true);
+        // Spec: In Critical Crystallization (-80% to -99%), falling from height onto ground shatters at -100% immediately
+        if (IsBrittleLocked)
+        {
+            ModifyStress(-100f, true);
+        }
+        else
+        {
+            ModifyStress(heavyLandingStress, true);
+        }
     }
 
     // Legacy compatibility wrappers
@@ -283,9 +291,9 @@ public class PlayerStress : MonoBehaviour
     {
         playerSpriteRenderer.color = Color.white;
         yield return new WaitForSeconds(polaritySnapFlashDuration);
-        if (!IsOverloaded && playerSpriteRenderer != null)
-            playerSpriteRenderer.color = baseSpriteColor;
         flashRoutine = null;
+        if (!IsOverloaded && playerSpriteRenderer != null)
+            UpdateCrystalCrackOverlay();
     }
 
     // ------------------------------------------------------------------ Post-Change, Overlays & Dual Overload Death
@@ -305,22 +313,30 @@ public class PlayerStress : MonoBehaviour
         }
     }
 
-    /// <summary>Updates the brittle crack overlay when currentStress &lt; -50f.</summary>
+    /// <summary>Updates the visual tint & optional crack overlay based on dual-polarity stress.</summary>
     private void UpdateCrystalCrackOverlay()
     {
-        if (crystalCrackOverlay == null) return;
-
-        if (currentStress < -strainedThreshold)
+        if (playerSpriteRenderer != null && flashRoutine == null && !IsOverloaded)
         {
-            crystalCrackOverlay.enabled = true;
-            float span = Mathf.Max(1f, Mathf.Abs(minStress) - strainedThreshold); // 50f range (-50 to -100)
-            float alpha = Mathf.Clamp01((Mathf.Abs(currentStress) - strainedThreshold) / span);
-            Color c = crystalCrackOverlay.color;
-            c.a = alpha;
-            crystalCrackOverlay.color = c;
+            if (currentStress <= -strainedThreshold)
+            {
+                float t = Mathf.Clamp01((Mathf.Abs(currentStress) - strainedThreshold) / Mathf.Max(1f, Mathf.Abs(minStress) - strainedThreshold));
+                playerSpriteRenderer.color = Color.Lerp(baseSpriteColor, new Color(0.55f, 0.92f, 1f, 1f), t * 0.65f);
+            }
+            else if (currentStress >= strainedThreshold)
+            {
+                float t = Mathf.Clamp01((currentStress - strainedThreshold) / Mathf.Max(1f, maxStress - strainedThreshold));
+                playerSpriteRenderer.color = Color.Lerp(baseSpriteColor, new Color(1f, 0.55f, 0.45f, 1f), t * 0.6f);
+            }
+            else
+            {
+                playerSpriteRenderer.color = baseSpriteColor;
+            }
         }
-        else
+
+        if (crystalCrackOverlay != null)
         {
+            // Keep separate static overlay disabled so it never draws a mismatched pose over Walk/Run/Jump/Dash
             crystalCrackOverlay.enabled = false;
         }
     }
@@ -331,15 +347,21 @@ public class PlayerStress : MonoBehaviour
         if (IsOverloaded) return;
         IsOverloaded = true;
 
+        if (playerSpriteRenderer != null)
+            playerSpriteRenderer.color = baseSpriteColor;
+
         OnMeltdownOverload?.Invoke();
         Overloaded?.Invoke();
     }
 
-    /// <summary>Negative Overload (-100%): Crystal Shatter death (1 frame rigid sprite -> hide -> shatter particles).</summary>
+    /// <summary>Negative Overload (-100%): Crystal Shatter death (plays Slime_ร่างแข็ง animation & shatter particles).</summary>
     public void TriggerCrystalShatterOverload()
     {
         if (IsOverloaded) return;
         IsOverloaded = true;
+
+        if (playerSpriteRenderer != null)
+            playerSpriteRenderer.color = baseSpriteColor;
 
         OnCrystalShatterOverload?.Invoke();
         if (gameObject.activeInHierarchy)
@@ -349,21 +371,21 @@ public class PlayerStress : MonoBehaviour
 
     private IEnumerator CrystalShatterDeathRoutine()
     {
-        if (playerSpriteRenderer != null && brittleShatterFrameSprite != null)
+        // Keep playerSpriteRenderer enabled so the Animator plays Slime_ร่างแข็ง.anim clearly during death!
+        if (playerSpriteRenderer != null)
         {
-            playerSpriteRenderer.sprite = brittleShatterFrameSprite;
+            playerSpriteRenderer.enabled = true;
+            if (brittleShatterFrameSprite != null)
+                playerSpriteRenderer.sprite = brittleShatterFrameSprite;
         }
 
-        // Show rigid crystal frame for 1 frame before shattering
-        yield return null;
-
-        if (playerSpriteRenderer != null)
-            playerSpriteRenderer.enabled = false;
         if (crystalCrackOverlay != null)
             crystalCrackOverlay.enabled = false;
 
         if (crystalShatterParticles != null)
             crystalShatterParticles.Play();
+
+        yield return null;
     }
 
     // ------------------------------------------------------------------ Reset on Respawn

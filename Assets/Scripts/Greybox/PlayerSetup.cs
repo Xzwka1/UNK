@@ -9,7 +9,7 @@ using UnityEditor;
 ///  - sizes the Hitbox (CapsuleCollider2D, 14x22 px) and gives it a zero-friction material,
 ///  - creates a child "Hurtbox" trigger (10x18 px) used for hazards,
 ///  - configures the child "Visual" with the character's SpriteRenderer, Animator (_Player.controller),
-///    CrystalOverlay, and PlayerAnimator2D (or falls back to a greybox rectangle if no sprite/controller exists).
+///    and PlayerAnimator2D (with bottom-pivoted sprite aligned flush with the bottom of the CapsuleCollider2D).
 /// Runs in Reset (when added), OnValidate, Awake, and from the context menu "Apply Setup".
 /// </summary>
 [RequireComponent(typeof(PlayerController2D), typeof(PlayerRespawn))]
@@ -27,8 +27,8 @@ public class PlayerSetup : MonoBehaviour
     [SerializeField] private Sprite brittleShatterSprite;
     [Tooltip("Scale of the Visual child so the 500px character art fits the physics hitbox cleanly.")]
     [SerializeField] private Vector3 characterVisualScale = new Vector3(0.35f, 0.35f, 1f);
-    [Tooltip("Local position offset of the Visual child so the character's feet align with the bottom of the collider.")]
-    [SerializeField] private Vector3 characterVisualOffset = new Vector3(0f, 0.08f, 0f);
+    [Tooltip("Local position offset of the Visual child so the bottom-pivoted character's feet sit flush with the bottom of the CapsuleCollider2D (-0.6875).")]
+    [SerializeField] private Vector3 characterVisualOffset = new Vector3(0f, -0.6875f, 0f);
     [Tooltip("Target orthographic camera size for gameplay if the scene camera was zoomed far out (e.g. 20).")]
     [SerializeField] private float gameplayCameraSize = 6.5f;
 
@@ -49,6 +49,10 @@ public class PlayerSetup : MonoBehaviour
     private void OnValidate()
     {
         AutoLoadEditorAssets();
+        float ppu = Mathf.Max(1f, pixelsPerUnit);
+        float halfHitboxHeight = (hitboxPixels.y / ppu) * 0.5f;
+        if (characterVisualOffset.y > -0.2f)
+            characterVisualOffset = new Vector3(0f, -halfHitboxHeight, 0f);
     }
 
     private void Awake()
@@ -103,6 +107,7 @@ public class PlayerSetup : MonoBehaviour
     private void Apply(bool runtime)
     {
         float ppu = Mathf.Max(1f, pixelsPerUnit);
+        float halfHitboxHeight = (hitboxPixels.y / ppu) * 0.5f; // 0.6875f for 22px @ 16 PPU
 
         // --- Rigidbody: no rotation, smooth + safe at dash speed.
         var rb = GetComponent<Rigidbody2D>();
@@ -112,7 +117,7 @@ public class PlayerSetup : MonoBehaviour
         rb.interpolation = RigidbodyInterpolation2D.Interpolate;
         rb.sleepMode = RigidbodySleepMode2D.NeverSleep;
 
-        // --- Hitbox: capsule, so corners round off instead of snagging.
+        // --- Hitbox: capsule centered on Player (bottom is at y = -halfHitboxHeight).
         var cap = GetComponent<CapsuleCollider2D>();
         cap.direction = CapsuleDirection2D.Vertical;
         cap.size = hitboxPixels / ppu;
@@ -152,7 +157,12 @@ public class PlayerSetup : MonoBehaviour
                 if (Mathf.Approximately(characterVisualScale.x, 0.28f))
                 {
                     characterVisualScale = new Vector3(0.35f, 0.35f, 1f);
-                    characterVisualOffset = new Vector3(0f, 0.08f, 0f);
+                }
+
+                // All character sprites have bottom-center pivot (0.5, 0), so align Visual.y with the bottom of the CapsuleCollider2D (-halfHitboxHeight)
+                if (characterVisualOffset.y > -0.2f)
+                {
+                    characterVisualOffset = new Vector3(0f, -halfHitboxHeight, 0f);
                 }
 
                 vis.localPosition = characterVisualOffset;
@@ -166,25 +176,13 @@ public class PlayerSetup : MonoBehaviour
                 if (animatorController != null)
                     anim.runtimeAnimatorController = animatorController;
 
-                // Create/configure Crystal Crack Overlay child under Visual
+                // Keep any legacy CrystalOverlay disabled so it doesn't render a duplicate body
                 SpriteRenderer overlaySr = null;
-                if (crystalOverlaySprite != null)
+                Transform overlayTf = vis.Find(CrystalOverlayName);
+                if (overlayTf != null)
                 {
-                    Transform overlayTf = vis.Find(CrystalOverlayName);
-                    if (overlayTf == null)
-                    {
-                        var overlayGo = new GameObject(CrystalOverlayName);
-                        overlayTf = overlayGo.transform;
-                        overlayTf.SetParent(vis, false);
-                    }
-                    overlayTf.localPosition = Vector3.zero;
-                    overlayTf.localScale = Vector3.one;
-
-                    overlaySr = Ensure<SpriteRenderer>(overlayTf.gameObject);
-                    overlaySr.sprite = crystalOverlaySprite;
-                    overlaySr.sortingOrder = sr.sortingOrder + 1;
-                    overlaySr.color = new Color(1f, 1f, 1f, 0f);
-                    overlaySr.enabled = false;
+                    overlaySr = overlayTf.GetComponent<SpriteRenderer>();
+                    if (overlaySr != null) overlaySr.enabled = false;
                 }
 
                 var ctrl = GetComponent<PlayerController2D>();
