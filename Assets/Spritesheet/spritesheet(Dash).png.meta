@@ -134,7 +134,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: spritesheet(Dash)_0
+      name: spritesheet(Dash)_1
       rect:
         serializedVersion: 2
         x: 7
@@ -156,7 +156,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Dash)_1
+      name: spritesheet(Dash)_3
       rect:
         serializedVersion: 2
         x: 603
@@ -178,10 +178,10 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Dash)_2
+      name: spritesheet(Dash)_4
       rect:
         serializedVersion: 2
-        x: 1194
+        x: 1192
         y: 695
         width: 546
         height: 322
@@ -200,7 +200,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Dash)_3
+      name: spritesheet(Dash)_2
       rect:
         serializedVersion: 2
         x: 7
@@ -222,7 +222,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Dash)_4
+      name: spritesheet(Dash)_6
       rect:
         serializedVersion: 2
         x: 544
@@ -279,13 +279,12 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      spritesheet(Dash)_0: -8447591890038019812
-      spritesheet(Dash)_1: 7982809839447296947
-      spritesheet(Dash)_2: 4698106635289046547
-      spritesheet(Dash)_3: -9125161050504571816
-      spritesheet(Dash)_4: -2526481160357294483
+      spritesheet(Dash)_1: -8447591890038019812
+      spritesheet(Dash)_2: -9125161050504571816
+      spritesheet(Dash)_3: 7982809839447296947
+      spritesheet(Dash)_4: 4698106635289046547
       spritesheet(Dash)_5: 1849245920819023199
-      spritesheet(Dash)_6: 8271136727405267376
+      spritesheet(Dash)_6: -2526481160357294483
       spritesheet(Dash)_7: -8358884236586415609
       spritesheet(Dash)_8: 710397428
   mipmapLimitGroupName: 

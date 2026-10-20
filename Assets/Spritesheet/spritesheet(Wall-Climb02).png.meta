@@ -122,11 +122,11 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: spritesheet(Wall-Climb02)_0
+      name: spritesheet(Wall-Climb02)_4
       rect:
         serializedVersion: 2
-        x: 8
-        y: 1521
+        x: 11
+        y: 1524
         width: 471
         height: 519
       alignment: 7
@@ -144,7 +144,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Wall-Climb02)_1
+      name: spritesheet(Wall-Climb02)_2
       rect:
         serializedVersion: 2
         x: 491
@@ -166,7 +166,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Wall-Climb02)_2
+      name: spritesheet(Wall-Climb02)_1
       rect:
         serializedVersion: 2
         x: 8
@@ -223,10 +223,10 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      spritesheet(Wall-Climb02)_0: -2897138382947835223
-      spritesheet(Wall-Climb02)_1: 761813456172843316
-      spritesheet(Wall-Climb02)_2: -2762761634647463256
+      spritesheet(Wall-Climb02)_1: -2762761634647463256
+      spritesheet(Wall-Climb02)_2: 761813456172843316
       spritesheet(Wall-Climb02)_3: -161426423966436914
+      spritesheet(Wall-Climb02)_4: -2897138382947835223
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

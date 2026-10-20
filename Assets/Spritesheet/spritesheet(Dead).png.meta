@@ -182,7 +182,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: spritesheet(Dead)_1
+      name: spritesheet(Dead)_6
       rect:
         serializedVersion: 2
         x: 857
@@ -226,10 +226,10 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Dead)_10
+      name: spritesheet(Dead)_4
       rect:
         serializedVersion: 2
-        x: 8
+        x: 5
         y: 1203
         width: 843
         height: 837
@@ -248,11 +248,11 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Dead)_16
+      name: spritesheet(Dead)_5
       rect:
         serializedVersion: 2
         x: 856
-        y: 1219
+        y: 1225
         width: 588
         height: 588
       alignment: 7
@@ -270,7 +270,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Dead)_18
+      name: spritesheet(Dead)_1
       rect:
         serializedVersion: 2
         x: 1451
@@ -292,10 +292,10 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Dead)_19
+      name: spritesheet(Dead)_3
       rect:
         serializedVersion: 2
-        x: 855
+        x: 852
         y: 701
         width: 403
         height: 506
@@ -328,26 +328,21 @@ TextureImporter:
       entries: []
     nameFileIdTable:
       spritesheet(Dead)_0: 8699521107106965640
-      spritesheet(Dead)_1: 5316640073499806712
-      spritesheet(Dead)_10: 3609958522825421079
-      spritesheet(Dead)_11: -5615942354861107313
+      spritesheet(Dead)_1: -3939135705657807165
       spritesheet(Dead)_12: 8186260777820554601
       spritesheet(Dead)_13: -713028088595210680
       spritesheet(Dead)_14: -1011771792387835972
       spritesheet(Dead)_15: 1400788951287060944
-      spritesheet(Dead)_16: -7536087771548728046
       spritesheet(Dead)_17: 4072185355043352617
-      spritesheet(Dead)_18: -3939135705657807165
-      spritesheet(Dead)_19: -8195505671789704231
       spritesheet(Dead)_2: 3270761763902582615
       spritesheet(Dead)_20: 788510807110813463
       spritesheet(Dead)_21: -5644053559591380286
       spritesheet(Dead)_22: 532874667215941367
       spritesheet(Dead)_23: -2791019478346359880
-      spritesheet(Dead)_3: 9176822063163231306
-      spritesheet(Dead)_4: 9124553508709289922
-      spritesheet(Dead)_5: 473885354315200201
-      spritesheet(Dead)_6: -5074935686431935392
+      spritesheet(Dead)_3: -8195505671789704231
+      spritesheet(Dead)_4: 3609958522825421079
+      spritesheet(Dead)_5: -7536087771548728046
+      spritesheet(Dead)_6: 5316640073499806712
       spritesheet(Dead)_7: 3652725926644775943
       spritesheet(Dead)_8: -104150828306965838
       spritesheet(Dead)_9: 6675383756201371261

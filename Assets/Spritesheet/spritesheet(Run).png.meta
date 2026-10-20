@@ -134,7 +134,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: spritesheet(Run)_0
+      name: spritesheet(Run)_8
       rect:
         serializedVersion: 2
         x: 8
@@ -156,7 +156,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Run)_1
+      name: spritesheet(Run)_4
       rect:
         serializedVersion: 2
         x: 479
@@ -181,8 +181,8 @@ TextureImporter:
       name: spritesheet(Run)_2
       rect:
         serializedVersion: 2
-        x: 8
-        y: 977
+        x: 5
+        y: 980
         width: 455
         height: 525
       alignment: 7
@@ -200,7 +200,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Run)_3
+      name: spritesheet(Run)_6
       rect:
         serializedVersion: 2
         x: 475
@@ -222,7 +222,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Run)_4
+      name: spritesheet(Run)_7
       rect:
         serializedVersion: 2
         x: 925
@@ -247,7 +247,7 @@ TextureImporter:
       name: spritesheet(Run)_5
       rect:
         serializedVersion: 2
-        x: 8
+        x: 0
         y: 449
         width: 439
         height: 516
@@ -266,7 +266,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Run)_6
+      name: spritesheet(Run)_1
       rect:
         serializedVersion: 2
         x: 458
@@ -288,10 +288,10 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: spritesheet(Run)_7
+      name: spritesheet(Run)_3
       rect:
         serializedVersion: 2
-        x: 920
+        x: 923
         y: 495
         width: 455
         height: 495
@@ -323,14 +323,14 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      spritesheet(Run)_0: 1702724720515456933
-      spritesheet(Run)_1: -9012392745473812286
+      spritesheet(Run)_1: 7097286924788188047
       spritesheet(Run)_2: -7554014974167536541
-      spritesheet(Run)_3: 5110695713760378321
-      spritesheet(Run)_4: 8504839352128706162
+      spritesheet(Run)_3: -2021837751407911364
+      spritesheet(Run)_4: -9012392745473812286
       spritesheet(Run)_5: -7845281649508715539
-      spritesheet(Run)_6: 7097286924788188047
-      spritesheet(Run)_7: -2021837751407911364
+      spritesheet(Run)_6: 5110695713760378321
+      spritesheet(Run)_7: 8504839352128706162
+      spritesheet(Run)_8: 1702724720515456933
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
