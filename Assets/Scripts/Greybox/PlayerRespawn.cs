@@ -3,14 +3,17 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// Death loop: when stress overloads or the Hurtbox touches a Hazard2D, disable movement, wait a short delay,
-/// move the player back to the start point, reset stress and re-enable movement.
+/// Death loop: when stress overloads or the Hurtbox touches a Hazard2D, disable movement, wait a short delay
+/// so the death animation (Dead or Slime_ร่างแข็ง) plays clearly, then respawn at the start point.
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D), typeof(PlayerController2D), typeof(PlayerStress))]
 public class PlayerRespawn : MonoBehaviour
 {
-    [Tooltip("Seconds between death and respawn (fast respawn).")]
-    [SerializeField] private float respawnDelay = 0.2f;
+    [Tooltip("Seconds between death and respawn (0.75s lets the 6-frame meltdown / crystal shatter animation play completely).")]
+    [SerializeField] private float respawnDelay = 0.75f;
+
+    [Tooltip("Downward slide speed during Meltdown Overload death if dying on a wall / in the air.")]
+    [SerializeField] private float meltdownSlideDownSpeed = 3.5f;
 
     [Tooltip("Optional. If empty, the position the player has at Start() is used. GreyboxLevelGenerator assigns this automatically.")]
     public Transform spawnPoint;
@@ -31,6 +34,7 @@ public class PlayerRespawn : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         controller = GetComponent<PlayerController2D>();
         stress = GetComponent<PlayerStress>();
+        if (respawnDelay < 0.7f) respawnDelay = 0.75f;
     }
 
     private void Start() => startPosition = transform.position;
@@ -55,10 +59,28 @@ public class PlayerRespawn : MonoBehaviour
     {
         // Kill() is usually called from a physics callback; wait a frame before touching the body.
         yield return null;
-        rb.linearVelocity = Vector2.zero;
-        rb.simulated = false;
 
-        yield return new WaitForSeconds(respawnDelay);
+        bool isMeltdownDeath = stress != null && stress.Current >= stress.CriticalThreshold;
+        if (isMeltdownDeath)
+        {
+            // During Meltdown / Body Overload death, let the slime slide/settle down onto the ground while Dead.anim plays!
+            rb.simulated = true;
+            rb.gravityScale = 0f;
+            float elapsed = 0f;
+            while (elapsed < respawnDelay)
+            {
+                rb.linearVelocity = new Vector2(0f, -meltdownSlideDownSpeed);
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+            rb.linearVelocity = Vector2.zero;
+        }
+        else
+        {
+            rb.linearVelocity = Vector2.zero;
+            rb.simulated = false;
+            yield return new WaitForSeconds(respawnDelay);
+        }
 
         Vector2 p = SpawnPosition;
         transform.position = new Vector3(p.x, p.y, transform.position.z);
