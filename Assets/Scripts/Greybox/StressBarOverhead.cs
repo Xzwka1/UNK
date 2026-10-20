@@ -12,7 +12,7 @@ public class StressBarOverhead : MonoBehaviour
 {
     [Header("Layout")]
     [Tooltip("Offset of the bar centre from the player's pivot (world units).")]
-    [SerializeField] private Vector2 offset = new Vector2(0f, 1.1f);
+    [SerializeField] private Vector2 offset = new Vector2(0f, 1.35f);
     [SerializeField] private Vector2 size = new Vector2(1.4f, 0.16f);
     [SerializeField] private float border = 0.03f;
     [SerializeField] private int sortingOrder = 20;

@@ -173,6 +173,23 @@ public class PlayerStress : MonoBehaviour
         UpdateCrystalCrackOverlay();
     }
 
+    /// <summary>Wires character SpriteRenderer, Crystal Crack Overlay, and Brittle Shatter sprite from PlayerSetup/PlayerAnimator2D.</summary>
+    public void ConfigureVisuals(SpriteRenderer mainRenderer, SpriteRenderer crackOverlay, Sprite brittleSprite)
+    {
+        if (mainRenderer != null)
+        {
+            playerSpriteRenderer = mainRenderer;
+            baseSpriteColor = mainRenderer.color;
+            baseSprite = mainRenderer.sprite;
+        }
+        if (crackOverlay != null)
+            crystalCrackOverlay = crackOverlay;
+        if (brittleSprite != null)
+            brittleShatterFrameSprite = brittleSprite;
+
+        UpdateCrystalCrackOverlay();
+    }
+
     // ------------------------------------------------------------------ Core Stress Logic
     /// <summary>
     /// Central method to modify stress from any player action.
