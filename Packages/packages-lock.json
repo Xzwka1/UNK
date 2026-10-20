@@ -17,27 +17,6 @@
       },
       "hash": "aa5fc638d623f56178d50329d9ad8c541a57fe66"
     },
-    "com.ivanmurzak.unity.mcp": {
-      "version": "0.93.3",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "com.unity.test-framework": "1.1.33",
-        "com.unity.modules.uielements": "1.0.0",
-        "extensions.unity.playerprefsex": "2.1.5"
-      },
-      "url": "https://package.openupm.com"
-    },
-    "com.ivanmurzak.unity.mcp.particlesystem": {
-      "version": "1.2.34",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "com.ivanmurzak.unity.mcp": "0.93.3",
-        "com.unity.modules.particlesystem": "1.0.0"
-      },
-      "url": "https://package.openupm.com"
-    },
     "com.unity.2d.animation": {
       "version": "15.1.0",
       "depth": 0,
@@ -326,13 +305,6 @@
         "com.unity.modules.jsonserialize": "1.0.0"
       },
       "url": "https://packages.unity.com"
-    },
-    "extensions.unity.playerprefsex": {
-      "version": "2.1.5",
-      "depth": 1,
-      "source": "registry",
-      "dependencies": {},
-      "url": "https://package.openupm.com"
     },
     "com.unity.modules.accessibility": {
       "version": "1.0.0",
