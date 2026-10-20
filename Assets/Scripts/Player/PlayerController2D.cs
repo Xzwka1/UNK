@@ -2,9 +2,9 @@ using UnityEngine;
 
 /// <summary>
 /// Precision-platformer player controller (Rigidbody2D, velocity driven).
-/// Combines William's clean modular architecture (AssistsLogic, RefillDash)
-/// with Earth's Dual-Polarity stress integration (Normal/Emergency Dash, Double Jump stress,
-/// Wall-climb stress/lockout, Polarity Snap refill, Heavy Landing).
+/// Combines William's clean modular architecture (AssistsLogic) with Earth's Dual-Polarity
+/// stress integration (Normal/Emergency Dash, Double Jump stress, Wall Meltdown Slide,
+/// Polarity Snap refill, Heavy Landing, BreakingBarrier smash-through with mid-air dash chaining).
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D), typeof(CapsuleCollider2D), typeof(PlayerStress))]
 public class PlayerController2D : MonoBehaviour
@@ -56,6 +56,8 @@ public class PlayerController2D : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float dashExitSpeedMultiplier = 0.6f;
     [Tooltip("Re-read WASD when the freeze ends so slightly late diagonals still count.")]
     [SerializeField] private bool resampleDirectionAfterFreeze = true;
+    [Tooltip("Allow a 2nd Emergency Air Dash once per airtime at a high stress cost (+45f).")]
+    [SerializeField] private bool allowEmergencyAirDash = true;
 
     [Header("Wall (hold Ctrl to grip)")]
     [SerializeField] private float climbSpeed = 3f;
@@ -65,10 +67,12 @@ public class PlayerController2D : MonoBehaviour
     [Tooltip("Horizontal input is ignored this long after a wall-jump so the push-off is felt.")]
     [SerializeField] private float wallJumpControlLock = 0.12f;
     [SerializeField] private int maxWallJumps = 5;
+    [Tooltip("Rate at which stress surges from +80% to +100% (Body Overload) while sliding down after over-climbing a wall.")]
+    [SerializeField] private float wallMeltdownSlideStressRate = 60f;
 
     [Header("Heavy Landing Impact")]
-    [Tooltip("Downward vertical speed threshold to trigger Heavy Landing impact on safe ground (-14f).")]
-    [SerializeField] private float heavyLandingSpeedThreshold = -14f;
+    [Tooltip("Downward vertical speed threshold to trigger Heavy Landing impact on safe ground (-16f).")]
+    [SerializeField] private float heavyLandingSpeedThreshold = -16f;
 
     [Header("Control assists")]
     [SerializeField] private AssistsLogic assists = new AssistsLogic();
@@ -95,17 +99,21 @@ public class PlayerController2D : MonoBehaviour
     private bool jumpPressLatch, dashPressLatch;
 
     private bool grounded, lastGrounded, groundIsSafe, gripping, jumpRising, gripAllowed = true;
+    private bool brittleSlipNotified, brittleJumpDenyNotified;
+    private bool wallMeltdownSliding;
     private int wallSide, lastWallSide, facing = 1;
 
     private float dashFreezeTimer, dashTimer, dashCooldownTimer, wallJumpLockTimer;
     private int airJumpsLeft, dashesLeft, wallJumpsUsed;
     private bool canEmergencyDash = true;
+    private bool dashRefundedDuringCurrentDash;
     private Vector2 dashDir;
     private float lastVelY;
 
     // ------------------------------------------------------------------ Public Read-Only Properties
     public bool IsGrounded => grounded;
     public bool IsGripping => gripping;
+    public bool IsWallMeltdownSliding => wallMeltdownSliding;
     public bool IsDashing => state == MoveState.Dashing || state == MoveState.DashFreeze;
     public bool CanDoubleJump => airJumpsLeft > 0;
     public int WallSide => wallSide;
@@ -178,8 +186,8 @@ public class PlayerController2D : MonoBehaviour
 
         switch (state)
         {
-            case MoveState.DashFreeze: TickDashFreeze(); break;
-            case MoveState.Dashing: TickDashing(dt); break;
+            case MoveState.DashFreeze: TickDashFreeze(dashPress); break;
+            case MoveState.Dashing: TickDashing(dt, dashPress); break;
             default: TickNormal(vel, dt, jumpPress, dashPress); break;
         }
     }
@@ -204,8 +212,10 @@ public class PlayerController2D : MonoBehaviour
         dashesLeft = maxDashes;
         canEmergencyDash = true;
         wallJumpsUsed = 0;
-        gripping = jumpRising = false;
+        gripping = jumpRising = wallMeltdownSliding = false;
         gripAllowed = true;
+        brittleSlipNotified = brittleJumpDenyNotified = false;
+        dashRefundedDuringCurrentDash = false;
         jumpPressLatch = dashPressLatch = false;
         input = default;
         if (rb != null)
@@ -216,18 +226,16 @@ public class PlayerController2D : MonoBehaviour
     }
 
     /// <summary>
-    /// William's RefillDash API: Refills normal dash and emergency air dash instantly.
-    /// Called by BreakableBarrier, RefillItem, and checkpoints.
+    /// Refills 1 Air Dash immediately with 0 cooldown (called by the BreakingBarrier impact and Polarity Snap).
+    /// While a dash is already in progress the refund is held instead of cancelling the dash, so the player
+    /// can chain straight into a new dash mid-air (see TickDashing).
     /// </summary>
-    public void RefillDash()
+    public void RefundAirDash()
     {
         dashesLeft = maxDashes;
         canEmergencyDash = true;
         dashCooldownTimer = 0f;
-        if (state == MoveState.Dashing || state == MoveState.DashFreeze)
-        {
-            state = MoveState.Normal;
-        }
+        dashRefundedDuringCurrentDash = true;
     }
 
     private void OnPolaritySnapBonus()
@@ -236,11 +244,30 @@ public class PlayerController2D : MonoBehaviour
         canEmergencyDash = true;
         airJumpsLeft = maxAirJumps;
         dashCooldownTimer = 0f;
+        dashRefundedDuringCurrentDash = true;
     }
 
     // ------------------------------------------------------------------ Normal Movement
     private void TickNormal(Vector2 vel, float dt, bool jumpPress, bool dashPress)
     {
+        // --- Wall Meltdown Slide: +80% reached while climbing a wall -> slide down and melt into Body Overload (+100%) ---
+        if (wallMeltdownSliding)
+        {
+            gripping = wallSide != 0;
+            rb.gravityScale = 0f;
+            rb.linearVelocity = new Vector2(0f, -slideSpeed);
+
+            // Surge from +80% to +100% while sliding (or instantly overload when touching ground / leaving the wall).
+            if (stress != null)
+            {
+                if (grounded || wallSide == 0)
+                    stress.ModifyStress(100f, false);
+                else
+                    stress.ModifyStress(wallMeltdownSlideStressRate * dt, false);
+            }
+            return;
+        }
+
         float h = Mathf.Abs(input.Move.x) > 0.1f ? Mathf.Sign(input.Move.x) : 0f;
         if (h != 0f) facing = (int)h;
 
@@ -256,7 +283,7 @@ public class PlayerController2D : MonoBehaviour
                 BeginDash(false);
                 return;
             }
-            else if (!grounded && canEmergencyDash)
+            else if (allowEmergencyAirDash && !grounded && canEmergencyDash)
             {
                 BeginDash(true);
                 return;
@@ -273,13 +300,17 @@ public class PlayerController2D : MonoBehaviour
             gripAllowed = false;
         }
 
-        if (input.GripHeld && wallSide != 0 && stress != null && stress.IsBrittleLocked)
+        bool brittleSlip = input.GripHeld && wallSide != 0 && stress != null && stress.IsBrittleLocked;
+        if (brittleSlip)
         {
-            stress.NotifyBrittleWallSlip();
+            // Notify once per contact: FixedUpdate would otherwise re-fire the SFX/animation every step.
+            if (!brittleSlipNotified) stress.NotifyBrittleWallSlip();
+            brittleSlipNotified = true;
             gripping = false;
         }
         else
         {
+            brittleSlipNotified = false;
             gripping = input.GripHeld && gripAllowed && wallSide != 0 && wallJumpLockTimer <= 0f;
         }
 
@@ -305,10 +336,27 @@ public class PlayerController2D : MonoBehaviour
             rb.gravityScale = 0f;
             jumpRising = false;
             float v = input.Move.y;
+            // Wall-Climb Up (+30f/s). Over-climbing into +80% (Critical Meltdown) flips the body into a
+            // Wall Meltdown Slide: viscosity is lost, the slime slides down and melts into Body Overload.
             if (v > 0.1f)
             {
-                vel.y = climbSpeed;
-                if (stress != null) stress.ApplyWallClimbStress(dt);
+                if (stress != null)
+                {
+                    stress.ApplyWallClimbStress(dt);
+                    if (stress.IsLiquidLocked)
+                    {
+                        wallMeltdownSliding = true;
+                        vel.y = -slideSpeed;
+                    }
+                    else
+                    {
+                        vel.y = climbSpeed;
+                    }
+                }
+                else
+                {
+                    vel.y = climbSpeed;
+                }
             }
             else if (v < -0.1f)
             {
@@ -376,18 +424,29 @@ public class PlayerController2D : MonoBehaviour
             return true;
         }
 
-        // 2) Wall-jump
+        // 2) Wall-jump (forbidden while Brittle-locked: a body of glass cannot kick off a wall)
         if (assists.CanWallCoyoteJump && lastWallSide != 0 && !input.GripHeld
             && h == -lastWallSide && wallJumpsUsed < maxWallJumps)
         {
-            vel = new Vector2(-lastWallSide * wallJumpSpeedX, VelocityForHeight(wallJumpHeight));
-            facing = -lastWallSide;
-            wallJumpsUsed++;
-            assists.ConsumeWallCoyote();
-            wallJumpLockTimer = wallJumpControlLock;
-            jumpRising = true;
-            if (stress != null) stress.ApplyWallJumpStress();
-            return true;
+            if (stress != null && stress.IsBrittleLocked)
+            {
+                if (!brittleJumpDenyNotified)
+                {
+                    brittleJumpDenyNotified = true;
+                    stress.NotifyBrittleWallSlip();
+                }
+            }
+            else
+            {
+                vel = new Vector2(-lastWallSide * wallJumpSpeedX, VelocityForHeight(wallJumpHeight));
+                facing = -lastWallSide;
+                wallJumpsUsed++;
+                assists.ConsumeWallCoyote();
+                wallJumpLockTimer = wallJumpControlLock;
+                jumpRising = true;
+                if (stress != null) stress.ApplyWallJumpStress();
+                return true;
+            }
         }
 
         // 3) Air Jump / Double Jump
@@ -438,6 +497,7 @@ public class PlayerController2D : MonoBehaviour
         jumpRising = false;
         assists.ConsumeCoyote();
         wallJumpLockTimer = 0f;
+        dashRefundedDuringCurrentDash = false;
 
         rb.linearVelocity = Vector2.zero;
         rb.gravityScale = 0f;
@@ -449,10 +509,15 @@ public class PlayerController2D : MonoBehaviour
             else
                 stress.ApplyNormalDashStress();
         }
+
+        // Break any BreakingBarrier already in contact or directly in front of the dash.
+        BreakBarriersAlongStep(dashDir * (dashSpeed * Time.fixedDeltaTime));
     }
 
-    private void TickDashFreeze()
+    private void TickDashFreeze(bool dashPress)
     {
+        if (dashPress) dashPressLatch = true; // preserve a rapid re-press through the freeze
+
         rb.linearVelocity = Vector2.zero;
         rb.gravityScale = 0f;
 
@@ -464,14 +529,31 @@ public class PlayerController2D : MonoBehaviour
 
         state = MoveState.Dashing;
         dashTimer = dashDuration;
+        BreakBarriersAlongStep(dashDir * (dashSpeed * Time.fixedDeltaTime));
         rb.linearVelocity = dashDir * dashSpeed;
     }
 
-    private void TickDashing(float dt)
+    private void TickDashing(float dt, bool dashPress)
     {
         rb.gravityScale = 0f;
 
         Vector2 v = dashDir * dashSpeed;
+        BreakBarriersAlongStep(v * dt);
+
+        // If a BreakingBarrier (or Polarity Snap) refunded the Dash, allow chaining into a new Dash mid-dash.
+        if (dashPress && dashRefundedDuringCurrentDash && dashesLeft > 0)
+        {
+            if (stress != null && stress.IsLiquidLocked)
+            {
+                stress.NotifyLiquidLockoutFail();
+            }
+            else
+            {
+                BeginDash(false);
+                return;
+            }
+        }
+
         assists.CornerCorrect(rb, col, filter, v, dt, pixelsPerUnit, true, true);
         rb.linearVelocity = v;
 
@@ -479,8 +561,45 @@ public class PlayerController2D : MonoBehaviour
         if (dashTimer > 0f) return;
 
         state = MoveState.Normal;
-        dashCooldownTimer = dashCooldown;
+        // If a BreakingBarrier was smashed during this dash, leave the cooldown at 0 so the next dash fires immediately.
+        dashCooldownTimer = dashRefundedDuringCurrentDash ? 0f : dashCooldown;
+        dashRefundedDuringCurrentDash = false;
         rb.linearVelocity = dashDir * dashSpeed * dashExitSpeedMultiplier;
+    }
+
+    /// <summary>Proactively breaks any BreakingBarrier overlapping the dash path so the dash never loses momentum.</summary>
+    private void BreakBarriersAlongStep(Vector2 step)
+    {
+        Vector3 s = transform.lossyScale;
+        Vector2 size = new Vector2(col.size.x * Mathf.Abs(s.x), col.size.y * Mathf.Abs(s.y)) + Vector2.one * 0.08f;
+        Vector2 center = rb.position + new Vector2(col.offset.x * s.x, col.offset.y * s.y) + step;
+
+        int n = Physics2D.OverlapCapsule(center, size, col.direction, 0f, filter, hits);
+        for (int i = 0; i < n; i++)
+        {
+            if (hits[i] == null || hits[i].attachedRigidbody == rb) continue;
+            var barrier = hits[i].GetComponentInParent<BreakingBarrier>();
+            if (barrier != null) barrier.Break(this);
+        }
+    }
+
+    // ------------------------------------------------------------------ Collisions: BreakingBarrier
+    private void OnCollisionEnter2D(Collision2D c)
+    {
+        if (controlEnabled) TryBreakBarrierInContact(c);
+    }
+
+    private void OnCollisionStay2D(Collision2D c)
+    {
+        if (controlEnabled) TryBreakBarrierInContact(c);
+    }
+
+    /// <summary>Also breaks when the player started dashing while already touching the barrier.</summary>
+    private void TryBreakBarrierInContact(Collision2D c)
+    {
+        if (state == MoveState.Normal || stress == null || stress.IsOverloaded) return;
+        var barrier = c.collider.GetComponentInParent<BreakingBarrier>();
+        if (barrier != null) barrier.Break(this);
     }
 
     // ------------------------------------------------------------------ Environment Sensing & Timers
@@ -513,6 +632,9 @@ public class PlayerController2D : MonoBehaviour
     private void TickTimers(float dt)
     {
         assists.Tick(dt, grounded, wallSide, ref lastWallSide);
+
+        // Re-arm the brittle jump-deny feedback once the buffered press has expired.
+        if (!assists.HasBufferedJump) brittleJumpDenyNotified = false;
 
         if (grounded)
         {

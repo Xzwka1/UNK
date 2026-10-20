@@ -71,7 +71,7 @@ public class PlayerSetup : MonoBehaviour
         EditorApplication.delayCall += () =>
         {
             if (Application.isPlaying) return;
-            var setups = Object.FindObjectsByType<PlayerSetup>(FindObjectsSortMode.None);
+            var setups = Object.FindObjectsByType<PlayerSetup>(FindObjectsInactive.Exclude);
             foreach (var s in setups)
             {
                 if (s != null)

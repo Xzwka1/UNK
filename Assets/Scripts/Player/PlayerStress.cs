@@ -88,7 +88,7 @@ public class PlayerStress : MonoBehaviour
     public UnityEvent<float> OnStressChangedInstance;
     [Tooltip("Fired when dashing while currentStress < 0f (+35f Thermal Shock). Play steam 'Shhh!' SFX here.")]
     public UnityEvent OnThermalShock;
-    [Tooltip("Fired when jumping across 0f from >= +50f or <= -50f in a single instant action. Play chime 'Ping!' SFX here.")]
+    [Tooltip("Fired when a change, armed by the 50% Strained zone, carries the value across 0f to the opposite pole. Play chime 'Ping!' SFX here.")]
     public UnityEvent OnPolaritySnap;
 
     [Header("Hard Lockout Events (±80%)")]
@@ -125,6 +125,9 @@ public class PlayerStress : MonoBehaviour
     private Color baseSpriteColor = Color.white;
     private Coroutine flashRoutine;
     private StressStage lastStage = StressStage.Stable;
+
+    /// <summary>Armed once the Strained zone (plus/minus 50%) is reached; the next single change that crosses 0% fires the snap.</summary>
+    private bool polaritySnapArmed;
 
     // ------------------------------------------------------------------ Public Read-Only Properties
     public float Current => currentStress;
@@ -194,17 +197,14 @@ public class PlayerStress : MonoBehaviour
         float previousStress = currentStress;
         currentStress = Mathf.Clamp(currentStress + amount, minStress, maxStress);
 
-        // Polarity Snap Bonus:
-        // Crossing 0f from >= +50% to negative, or from <= -50% to positive in an instant action!
-        if (isInstant)
+        // Polarity Snap Bonus (armed-crossing rule):
+        // Reaching the Strained zone (|x| >= 50%) arms the snap; the first single change that carries
+        // the value across 0f to the opposite pole fires it (refunds 1 Air Dash + Double-Jump mid-air).
+        if (polaritySnapArmed
+            && ((previousStress > 0f && currentStress < 0f) || (previousStress < 0f && currentStress > 0f)))
         {
-            bool snapFromPositive = (previousStress >= strainedThreshold) && (currentStress < 0f);
-            bool snapFromNegative = (previousStress <= -strainedThreshold) && (currentStress > 0f);
-
-            if (snapFromPositive || snapFromNegative)
-            {
-                TriggerPolaritySnap();
-            }
+            polaritySnapArmed = false;
+            TriggerPolaritySnap();
         }
 
         ApplyPostChangeUpdates();
@@ -290,6 +290,11 @@ public class PlayerStress : MonoBehaviour
     private void ApplyPostChangeUpdates()
     {
         UpdateCrystalCrackOverlay();
+
+        // Arming: reaching the Strained zone (|x| >= 50%) arms the next crossing of 0%.
+        if (Mathf.Abs(currentStress) >= strainedThreshold)
+            polaritySnapArmed = true;
+
         EvaluateStage();
         OnStressChangedInstance?.Invoke(currentStress);
         OnStressChanged?.Invoke(SignedNormalized);
@@ -388,6 +393,7 @@ public class PlayerStress : MonoBehaviour
 
         currentStress = 0f;
         IsOverloaded = false;
+        polaritySnapArmed = false;
 
         if (playerSpriteRenderer != null)
         {
