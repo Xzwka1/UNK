@@ -9,11 +9,21 @@ public class Hazard2D : MonoBehaviour
 {
     [Tooltip("Optional label, useful for debugging.")]
     public string hazardName = "Hazard";
+    //private player
+    
 
     private void Reset()
     {
         // Hazards are detected by the Hurtbox trigger, so they should be triggers themselves.
         var c = GetComponent<Collider2D>();
         if (c != null) c.isTrigger = true;
+        //playerController = GetComponent<PlayerController2D>();
     }
+    /*private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Player"))
+        {
+            playerController.
+        }
+    }*/
 }
