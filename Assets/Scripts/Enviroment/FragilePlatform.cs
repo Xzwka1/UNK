@@ -72,7 +72,7 @@ public class FragilePlatform : MonoBehaviour
     [SerializeField] private Animator animator;
 
     // ------------------------------------------------------------------ Inspector: visuals (5-Stage Sprites)
-    [Header("Visuals - 5-Stage Sprites (auto-loaded from Assets/Tileset/Tileset)")]
+    [Header("Visuals - 5-Stage Sprites (auto-loaded from Assets/Tileset)")]
     [Tooltip("Stage 1 (Normal): Intact platform (IMG_0458).")]
     [SerializeField] private Sprite normalSprite;
     [Tooltip("Stage 2A (Cracking 0%..50%): Cracked stones under grass (IMG_0459).")]
@@ -153,15 +153,15 @@ public class FragilePlatform : MonoBehaviour
     {
 #if UNITY_EDITOR
         if (normalSprite == null)
-            normalSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/Tileset/IMG_0458.png");
+            normalSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/IMG_0458.png");
         if (crackingSprite == null)
-            crackingSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/Tileset/IMG_0459.png");
+            crackingSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/IMG_0459.png");
         if (breakingSprite == null)
-            breakingSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/Tileset/IMG_0460.png");
+            breakingSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/IMG_0460.png");
         if (reformingEarlySprite == null)
-            reformingEarlySprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/Tileset/23d55c94730f5902.png");
+            reformingEarlySprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/23d55c94730f5902.png");
         if (reformingSprite == null)
-            reformingSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/Tileset/f54d9acec6b489a3.png");
+            reformingSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/f54d9acec6b489a3.png");
 #endif
     }
 

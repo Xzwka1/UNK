@@ -3924,9 +3924,11 @@ MonoBehaviour:
   apexThreshold: 2
   jumpHeight: 3.2
   airJumpHeight: 2.5
+  maxAirJumps: 1
   dashSpeed: 24
   dashDuration: 0.15
   dashFreezeDuration: 0.05
+  maxDashes: 1
   dashCooldown: 0.2
   dashExitSpeedMultiplier: 0.6
   resampleDirectionAfterFreeze: 1
@@ -3937,15 +3939,15 @@ MonoBehaviour:
   wallJumpHeight: 2.5
   wallJumpControlLock: 0.12
   maxWallJumps: 5
-  lockoutFeedbackCooldown: 0.35
   wallMeltdownSlideStressRate: 60
-  heavyLandingVelocityThreshold: 16
-  coyoteTime: 0.1
-  wallCoyoteTime: 0.08
-  jumpBufferTime: 0.12
-  airJumpLandingBufferDistance: 0.6
-  cornerCorrectionPixels: 4
-  cornerCorrectionOnJump: 1
+  heavyLandingSpeedThreshold: -16
+  assists:
+    coyoteTime: 0.1
+    wallCoyoteTime: 0.08
+    jumpBufferTime: 0.12
+    airJumpLandingBufferDistance: 0.6
+    cornerCorrectionPixels: 4
+    cornerCorrectionOnJump: 1
   groundMask:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -3984,7 +3986,7 @@ MonoBehaviour:
   brittleShatterFrameSprite: {fileID: -2610990157313487943, guid: b57d700924b580c45bd200a734dc8897, type: 3}
   crystalShatterParticles: {fileID: 0}
   currentStress: 0
-  OnStressChanged:
+  OnStressChangedInstance:
     m_PersistentCalls:
       m_Calls: []
   OnThermalShock:
@@ -4387,7 +4389,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FragilePlatform
   crackDuration: 0.5
   destroyedDuration: 3
-  reformDuration: 0.25
+  reformDuration: 0.4
   triggerOnStand: 1
   triggerOnGrip: 1
   standTolerance: 0.15
@@ -4399,7 +4401,7 @@ MonoBehaviour:
   heavyLandingSpeed: 14
   colliders:
   - {fileID: 1588447627}
-  visualRoot: {fileID: 415428649}
+  visualRoot: {fileID: 0}
   spriteRenderer: {fileID: 415428648}
   animator: {fileID: 0}
   normalSprite: {fileID: 5750678877975532995, guid: ac3ee3e7e7660c343aaf34857c522ada, type: 3}

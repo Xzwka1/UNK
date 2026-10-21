@@ -424,9 +424,12 @@ public class PlayerController2D : MonoBehaviour
             return true;
         }
 
-        // 2) Wall-jump (forbidden while Brittle-locked: a body of glass cannot kick off a wall)
-        if (assists.CanWallCoyoteJump && lastWallSide != 0 && !input.GripHeld
-            && h == -lastWallSide && wallJumpsUsed < maxWallJumps)
+        // 2) Wall-jump — matches the Pee-Map-V3 branch: touching a wall (or still within wall coyote of one) is
+        // the only requirement. The push-off direction comes from the wall itself, so no direction key has to
+        // be held: pressing Space anywhere in the wall's reach simply kicks off it. Requiring the opposite
+        // direction here is what used to miss the timing window and fall through to a double jump instead.
+        // Forbidden while Brittle-locked: a body of glass cannot kick off a wall.
+        if ((assists.CanWallCoyoteJump || wallSide != 0) && lastWallSide != 0 && wallJumpsUsed < maxWallJumps)
         {
             if (stress != null && stress.IsBrittleLocked)
             {
