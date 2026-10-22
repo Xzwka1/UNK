@@ -422,6 +422,7 @@ public class PlayerController2D : MonoBehaviour
             // slime loses viscosity, slides down the wall, melts, and dies of Body Overload (+100%)!
             if (stress.IsLiquidLocked)
             {
+                if (!wallMeltdownSliding) stress.NotifyLiquidLockoutFail(LockoutKind.NoClimb);
                 wallMeltdownSliding = true;
                 return -slideSpeed;
             }
@@ -476,7 +477,7 @@ public class PlayerController2D : MonoBehaviour
         {
             if (stress.IsBrittleLocked)
             {
-                stress.NotifyBrittleWallSlip();
+                stress.NotifyBrittleWallSlip(LockoutKind.NoWallJump);
                 jumpBufferTimer = 0f;
                 return false;
             }
@@ -501,7 +502,7 @@ public class PlayerController2D : MonoBehaviour
 
             if (stress.IsLiquidLocked)
             {
-                stress.NotifyLiquidLockoutFail();
+                stress.NotifyLiquidLockoutFail(LockoutKind.NoDoubleJump);
                 jumpBufferTimer = 0f;
                 return false;
             }

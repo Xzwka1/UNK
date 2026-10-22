@@ -54,6 +54,17 @@ public class CameraController2D : MonoBehaviour
     [SerializeField] private Collider2D roomBoundsCollider;
     [SerializeField] private Vector2 minBounds = new Vector2(-20f, -10f);
     [SerializeField] private Vector2 maxBounds = new Vector2(20f, 10f);
+    [Tooltip("Build the room automatically from every Sprite / Tilemap renderer in the scene (the player and its children are ignored), " +
+             "so the camera never shows empty space beyond the edge of the map art. Overrides the manual bounds.")]
+    [SerializeField] private bool autoBoundsFromScene = true;
+
+    [Header("Aspect Ratio (16:9 / 1920x1080)")]
+    [Tooltip("Letterbox / pillarbox the view to a fixed aspect ratio so every window size shows the same area.")]
+    [SerializeField] private bool lockAspectRatio = true;
+    [SerializeField] private Vector2 aspectRatio = new Vector2(16f, 9f);
+
+    private Camera letterboxCam;
+    private int lastScreenW, lastScreenH;
 
     // ------------------------------------------------------------------ Runtime
     private Camera cam;
@@ -120,6 +131,7 @@ public class CameraController2D : MonoBehaviour
         cam = GetComponent<Camera>();
         effects = GetComponent<CameraEffects>();
         z = transform.position.z;
+        if (lockAspectRatio) ApplyAspect(true);
 
         if (!cam.orthographic)
             Debug.LogWarning("CameraController2D expects an orthographic camera (view size is used for the room bounds).", this);
@@ -134,6 +146,8 @@ public class CameraController2D : MonoBehaviour
             initialized = TryInitialize(true);
             if (!initialized) return;
         }
+
+        if (lockAspectRatio) ApplyAspect(false);
 
         float dt = Time.deltaTime;
 
@@ -166,6 +180,7 @@ public class CameraController2D : MonoBehaviour
         if (target.TryGetComponent(out PlayerController2D pc)) lookaheadDir = pc.Facing >= 0 ? 1 : -1;
 
         Bind();
+        if (autoBoundsFromScene) BuildAutoBounds();
         if (snap) SnapToTarget();
         return true;
     }
@@ -220,7 +235,66 @@ public class CameraController2D : MonoBehaviour
         else if (delta.y < -half.y) focus.y += delta.y + half.y;
     }
 
+    // ------------------------------------------------------------------ Aspect ratio
+    private void ApplyAspect(bool force)
+    {
+        if (!force && Screen.width == lastScreenW && Screen.height == lastScreenH) return;
+        lastScreenW = Screen.width;
+        lastScreenH = Screen.height;
+
+        float want = aspectRatio.x / aspectRatio.y;
+        float have = (float)Screen.width / Screen.height;
+        Rect r = new Rect(0f, 0f, 1f, 1f);
+        if (have > want)        // window too wide -> pillarbox
+        {
+            r.width = want / have;
+            r.x = (1f - r.width) * 0.5f;
+        }
+        else if (have < want)   // window too tall -> letterbox
+        {
+            r.height = have / want;
+            r.y = (1f - r.height) * 0.5f;
+        }
+        cam.rect = r;
+
+        // A tiny black camera behind the main one clears the bars so no stale pixels show.
+        if (letterboxCam == null)
+        {
+            var go = new GameObject("LetterboxBackground");
+            go.transform.SetParent(transform, false);
+            letterboxCam = go.AddComponent<Camera>();
+            letterboxCam.clearFlags = CameraClearFlags.SolidColor;
+            letterboxCam.backgroundColor = Color.black;
+            letterboxCam.cullingMask = 0;
+            letterboxCam.depth = cam.depth - 100f;
+            var al = go.GetComponent<AudioListener>();
+            if (al != null) Destroy(al);
+        }
+    }
+
     // ------------------------------------------------------------------ Room bounds
+    /// <summary>Union of every visible map renderer (ignoring the player hierarchy) becomes the camera room.</summary>
+    private void BuildAutoBounds()
+    {
+        bool has = false;
+        Bounds total = default;
+        foreach (Renderer r in FindObjectsByType<Renderer>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        {
+            if (!(r is SpriteRenderer) && !(r is UnityEngine.Tilemaps.TilemapRenderer)) continue;
+            if (target != null && r.transform.IsChildOf(target)) continue;
+            if (r.transform.IsChildOf(transform)) continue;
+            Bounds b = r.bounds;
+            if (b.size.x <= 0f || b.size.y <= 0f) continue;
+            if (!has) { total = b; has = true; }
+            else total.Encapsulate(b);
+        }
+
+        if (!has) return;
+        roomBoundsCollider = null;
+        minBounds = total.min;
+        maxBounds = total.max;
+        confineToBounds = true;
+    }
     private bool TryGetRoom(out Rect room)
     {
         room = default;

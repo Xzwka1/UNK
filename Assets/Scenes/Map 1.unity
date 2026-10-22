@@ -394,6 +394,9 @@ MonoBehaviour:
   roomBoundsCollider: {fileID: 0}
   minBounds: {x: -20, y: -10}
   maxBounds: {x: 20, y: 10}
+  autoBoundsFromScene: 1
+  lockAspectRatio: 1
+  aspectRatio: {x: 16, y: 9}
 --- !u!114 &137384459
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3992,10 +3995,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d6766bd2a0c4fdd47b16aa29d660d724, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerStress
-  minStress: -100
-  maxStress: 100
-  strainedThreshold: 50
-  criticalThreshold: 80
+  minStress: 200
+  maxStress: 200
+  strainedThreshold: 80
+  criticalThreshold: 100
   safeGroundRecoveryRate: 10
   normalDashStress: 25
   thermalShockDashStress: 35

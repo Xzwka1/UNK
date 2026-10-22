@@ -3,6 +3,9 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
 
+/// <summary>Which action was denied by a critical (±80%) lockout. Used for feedback icons.</summary>
+public enum LockoutKind { NoDash, NoDoubleJump, NoClimb, NoWallGrip, NoWallJump, HeavyFall }
+
 /// <summary>
 /// Dual-Polarity Stress States (-100% Brittle Crystal <-> 0% Equilibrium <-> +100% Tensile Liquid)
 /// </summary>
@@ -119,6 +122,8 @@ public class PlayerStress : MonoBehaviour
     /// <summary>Fired when Polarity Snap triggers so PlayerController2D can refill canDash & canDoubleJump.</summary>
     public event Action PolaritySnapped;
     public event Action<StressStage> StageChanged;
+    /// <summary>Fired when the player tries an action a critical lockout denies (drives feedback icons).</summary>
+    public event Action<LockoutKind> LockoutDenied;
 
     // ------------------------------------------------------------------ Public Read-Only Properties
     public float Current => currentStress;
@@ -253,6 +258,7 @@ public class PlayerStress : MonoBehaviour
     public void ApplyHeavyLandingStress()
     {
         OnHardLandingImpact?.Invoke();
+        if (IsBrittleLocked) LockoutDenied?.Invoke(LockoutKind.HeavyFall);
         // Spec: In Critical Crystallization (-80% to -99%), falling from height onto ground shatters at -100% immediately
         if (IsBrittleLocked)
         {
@@ -270,8 +276,8 @@ public class PlayerStress : MonoBehaviour
     public void Recover(float dt) => RecoverOnSafeGround(dt);
 
     // ------------------------------------------------------------------ Lockout Feedback Triggers
-    public void NotifyLiquidLockoutFail() => OnLiquidLockoutFail?.Invoke();
-    public void NotifyBrittleWallSlip() => OnBrittleWallSlip?.Invoke();
+    public void NotifyLiquidLockoutFail(LockoutKind kind = LockoutKind.NoDash) { OnLiquidLockoutFail?.Invoke(); LockoutDenied?.Invoke(kind); }
+    public void NotifyBrittleWallSlip(LockoutKind kind = LockoutKind.NoWallGrip) { OnBrittleWallSlip?.Invoke(); LockoutDenied?.Invoke(kind); }
     public void NotifyHardLanding() => OnHardLandingImpact?.Invoke();
 
     // ------------------------------------------------------------------ Polarity Snap Bonus
