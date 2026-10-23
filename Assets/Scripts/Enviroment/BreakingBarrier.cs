@@ -136,6 +136,7 @@ public class BreakingBarrier : MonoBehaviour, IBreakable
 
         // 1. Disable colliders immediately so the dashing player passes straight through.
         SetCollidersEnabled(false);
+        SoundManager.PlayBarrierBreak();
 
         // 2. Show the broken sprite (IMG_0492).
         if (spriteRenderer != null)

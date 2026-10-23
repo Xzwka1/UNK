@@ -272,8 +272,14 @@ public class FragilePlatform : MonoBehaviour
         switch (next)
         {
             case PlatformState.Normal: onNormal?.Invoke(); break;
-            case PlatformState.Cracking: onCracking?.Invoke(); break;
-            case PlatformState.Destroyed: onDestroyed?.Invoke(); break;
+            case PlatformState.Cracking:
+                onCracking?.Invoke();
+                SoundManager.PlayPlatformCrack();
+                break;
+            case PlatformState.Destroyed:
+                onDestroyed?.Invoke();
+                SoundManager.PlayPlatformBreak();
+                break;
             case PlatformState.Reforming: onReforming?.Invoke(); break;
         }
 

@@ -31,6 +31,7 @@ public class GoalAltar : MonoBehaviour
         Reached = true;
         Debug.Log("[GoalAltar] Goal reached!");
         OnGoalReached?.Invoke();
+        SoundManager.PlayStageClear();
 
         if (loadNextScene)
         {

@@ -133,6 +133,7 @@ public class PlayerSetup : MonoBehaviour
         // --- Overhead stress bar (built from sprites at runtime, so only added in Play mode).
         if (runtime) Ensure<StressBarHUD>(gameObject); // new hand-drawn vertical gauge (replaces StressBarOverhead)
         if (runtime) Ensure<LockoutFeedbackIcons>(gameObject);
+        if (runtime) Ensure<PlayerAudioBridge>(gameObject);
 
         // --- Ensure gameplay camera isn't zoomed out to 20 units.
         Camera mainCam = Camera.main;

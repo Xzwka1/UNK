@@ -171,9 +171,10 @@ public class PlayerController2D : MonoBehaviour
         TickTimers(dt);
 
         // Detect Heavy Landing on impact with safe ground
-        if (!lastGrounded && grounded && lastVelY <= heavyLandingSpeedThreshold)
+        if (!lastGrounded && grounded)
         {
-            if (stress != null)
+            SoundManager.PlayLand();
+            if (lastVelY <= heavyLandingSpeedThreshold && stress != null)
                 stress.ApplyHeavyLandingStress();
         }
         lastGrounded = grounded;
@@ -422,6 +423,7 @@ public class PlayerController2D : MonoBehaviour
             vel.y = VelocityForHeight(jumpHeight);
             assists.ConsumeCoyote();
             jumpRising = true;
+            SoundManager.PlayJump();
             return true;
         }
 
@@ -449,6 +451,7 @@ public class PlayerController2D : MonoBehaviour
                 wallJumpLockTimer = wallJumpControlLock;
                 jumpRising = true;
                 if (stress != null) stress.ApplyWallJumpStress();
+                SoundManager.PlayJump();
                 return true;
             }
         }
@@ -470,6 +473,7 @@ public class PlayerController2D : MonoBehaviour
             airJumpsLeft--;
             jumpRising = true;
             if (stress != null) stress.ApplyDoubleJumpStress();
+            SoundManager.PlayDoubleJump();
             return true;
         }
 
@@ -513,6 +517,7 @@ public class PlayerController2D : MonoBehaviour
             else
                 stress.ApplyNormalDashStress();
         }
+        SoundManager.PlayDash(isEmergencyDash);
 
         // Break any BreakingBarrier already in contact or directly in front of the dash.
         BreakBarriersAlongStep(dashDir * (dashSpeed * Time.fixedDeltaTime));
