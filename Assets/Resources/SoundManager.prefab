@@ -52,7 +52,7 @@ MonoBehaviour:
   loopSource: {fileID: 6086937855695092142}
   masterVolume: 1
   sfxVolume: 1
-  bgmVolume: 0.8
+  bgmVolume: 0.25
   usePitchVariation: 1
   minPitch: 0.95
   maxPitch: 1.05

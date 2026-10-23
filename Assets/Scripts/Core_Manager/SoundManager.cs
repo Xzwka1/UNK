@@ -68,7 +68,7 @@ public class SoundManager : MonoBehaviour
     [Header("Volume Settings")]
     [Range(0f, 1f)] [SerializeField] private float masterVolume = 1f;
     [Range(0f, 1f)] [SerializeField] private float sfxVolume = 1f;
-    [Range(0f, 1f)] [SerializeField] private float bgmVolume = 0.8f;
+    [Range(0f, 1f)] [SerializeField] private float bgmVolume = 0.25f;
 
     [Header("Pitch Variation (makes repeated SFX sound natural)")]
     [SerializeField] private bool usePitchVariation = true;
@@ -425,7 +425,7 @@ public class SoundManager : MonoBehaviour
     public static void PlayGameplayMusic()
     {
         if (Instance != null && Instance.gameplayBGM != null)
-            Instance.PlayBGM(Instance.gameplayBGM, 0.75f);
+            Instance.PlayBGM(Instance.gameplayBGM, 1f);
     }
 
 #if UNITY_EDITOR

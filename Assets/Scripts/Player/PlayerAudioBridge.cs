@@ -7,16 +7,11 @@ using UnityEngine;
 [RequireComponent(typeof(PlayerController2D), typeof(PlayerStress), typeof(PlayerRespawn))]
 public class PlayerAudioBridge : MonoBehaviour
 {
-    [Header("Footsteps")]
-    [SerializeField] private float footstepInterval = 0.32f;
-    [SerializeField] private float minMoveSpeedForFootstep = 1.2f;
-
     private PlayerController2D controller;
     private PlayerStress stress;
     private PlayerRespawn respawn;
     private Rigidbody2D rb;
 
-    private float footstepTimer;
     private bool wasWallSliding;
 
     private void Awake()
@@ -77,29 +72,6 @@ public class PlayerAudioBridge : MonoBehaviour
                 if (SoundManager.instance != null) SoundManager.PlayWallSlide(false);
             }
             return;
-        }
-
-        // --- Walking Footsteps ---
-        if (controller.IsGrounded && !controller.IsDashing)
-        {
-            float speedX = Mathf.Abs(rb.linearVelocity.x);
-            if (speedX >= minMoveSpeedForFootstep)
-            {
-                footstepTimer -= Time.deltaTime;
-                if (footstepTimer <= 0f)
-                {
-                    SoundManager.PlayFootstep();
-                    footstepTimer = footstepInterval;
-                }
-            }
-            else
-            {
-                footstepTimer = 0.05f; // Ready to step as soon as movement starts
-            }
-        }
-        else
-        {
-            footstepTimer = 0.1f;
         }
 
         // --- Wall Slide Looping Audio ---
