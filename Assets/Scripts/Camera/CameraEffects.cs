@@ -71,7 +71,7 @@ public class CameraEffects : MonoBehaviour
     private void Awake()
     {
         Instance = this;
-        if (player == null) player = FindFirstObjectByType<PlayerRespawn>();
+        if (player == null) player = FindAnyObjectByType<PlayerRespawn>();
     }
 
     private void OnEnable()
