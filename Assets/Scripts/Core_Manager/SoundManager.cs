@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
 
 /// <summary>
@@ -11,21 +12,40 @@ public class SoundManager : MonoBehaviour
     public static SoundManager instance;
     private static bool isQuitting = false;
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStaticState()
+    {
+        isQuitting = false;
+        instance = null;
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void AutoBootstrapOnSceneLoad()
+    {
+        isQuitting = false;
+        var sm = Instance;
+        if (sm != null)
+        {
+            sm.OnSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
+        }
+    }
+
     public static SoundManager Instance
     {
         get
         {
-            if (isQuitting) return null;
+            if (isQuitting || !Application.isPlaying) return instance;
             if (instance == null)
             {
                 instance = FindFirstObjectByType<SoundManager>();
-                if (instance == null && !isQuitting && Application.isPlaying)
+                if (instance == null)
                 {
                     GameObject prefab = Resources.Load<GameObject>("SoundManager");
                     GameObject go;
                     if (prefab != null)
                     {
                         go = Instantiate(prefab);
+                        instance = go.GetComponent<SoundManager>();
                     }
                     else
                     {
@@ -104,6 +124,7 @@ public class SoundManager : MonoBehaviour
 
     private void Awake()
     {
+        isQuitting = false;
         if (instance != null && instance != this)
         {
             Destroy(gameObject);
@@ -112,13 +133,39 @@ public class SoundManager : MonoBehaviour
 
         instance = this;
         DontDestroyOnLoad(gameObject);
-        EnsureAudioSources();
-        EnsureAudioListener();
 
         // If this scene instance has unassigned clips, copy from Resources/SoundManager prefab
         if (jumpClip == null)
         {
             CopyClipsFromPrefab();
+        }
+
+        EnsureAudioSources();
+        EnsureAudioListener();
+        PreloadAllAssignedClips();
+    }
+
+    private void OnEnable()
+    {
+        isQuitting = false;
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        EnsureAudioListener();
+        if (scene.name == "MainMenu")
+        {
+            PlayMainMenuMusic();
+        }
+        else
+        {
+            PlayGameplayMusic();
         }
     }
 
@@ -137,6 +184,9 @@ public class SoundManager : MonoBehaviour
 
     public void EnsureAudioListener()
     {
+        AudioListener.pause = false;
+        if (AudioListener.volume <= 0.01f) AudioListener.volume = 1f;
+
         if (FindFirstObjectByType<AudioListener>() == null)
         {
             Camera cam = Camera.main;
@@ -149,6 +199,41 @@ public class SoundManager : MonoBehaviour
                 gameObject.AddComponent<AudioListener>();
             }
         }
+    }
+
+    private static void EnsureClipReady(AudioClip clip)
+    {
+        if (clip != null && clip.loadState == AudioDataLoadState.Unloaded)
+        {
+            clip.LoadAudioData();
+        }
+    }
+
+    private void PreloadAllAssignedClips()
+    {
+        EnsureClipReady(jumpClip);
+        EnsureClipReady(doubleJumpClip);
+        EnsureClipReady(dashClip);
+        EnsureClipReady(dashEmergencyClip);
+        EnsureClipReady(wallImpactClip);
+        EnsureClipReady(wallSlideClip);
+        EnsureClipReady(wallTouchClip);
+        EnsureClipReady(landClip);
+        EnsureClipReady(walkClip);
+        EnsureClipReady(respawnClip);
+        EnsureClipReady(polaritySnapClip);
+        EnsureClipReady(liquidLockoutClip);
+        EnsureClipReady(brittleLockoutClip);
+        EnsureClipReady(bodyCrackClip);
+        EnsureClipReady(meltDeathClip);
+        EnsureClipReady(crystalDeathClip);
+        EnsureClipReady(platformCrackClip);
+        EnsureClipReady(platformBreakClip);
+        EnsureClipReady(barrierBreakClip);
+        EnsureClipReady(buttonClickClip);
+        EnsureClipReady(mainMenuBGM);
+        EnsureClipReady(stageClearClip);
+        EnsureClipReady(gameplayBGM);
     }
 
     private void CopyClipsFromPrefab()
@@ -191,20 +276,25 @@ public class SoundManager : MonoBehaviour
         if (sfxSource == null)
         {
             sfxSource = gameObject.AddComponent<AudioSource>();
-            sfxSource.playOnAwake = false;
         }
+        sfxSource.playOnAwake = false;
+        sfxSource.spatialBlend = 0f; // 2D sound
+
         if (bgmSource == null)
         {
             bgmSource = gameObject.AddComponent<AudioSource>();
-            bgmSource.playOnAwake = false;
-            bgmSource.loop = true;
         }
+        bgmSource.playOnAwake = false;
+        bgmSource.loop = true;
+        bgmSource.spatialBlend = 0f; // 2D sound
+
         if (loopSource == null)
         {
             loopSource = gameObject.AddComponent<AudioSource>();
-            loopSource.playOnAwake = false;
-            loopSource.loop = true;
         }
+        loopSource.playOnAwake = false;
+        loopSource.loop = true;
+        loopSource.spatialBlend = 0f; // 2D sound
 
         UpdateSourceVolumes();
     }
@@ -225,6 +315,7 @@ public class SoundManager : MonoBehaviour
     public void PlaySound(AudioClip sound, float volume, bool varyPitch)
     {
         if (sound == null || isQuitting) return;
+        EnsureClipReady(sound);
         EnsureAudioSources();
 
         if (varyPitch && usePitchVariation)
@@ -249,6 +340,7 @@ public class SoundManager : MonoBehaviour
     public void PlayBGM(AudioClip sound, float volume = 1f)
     {
         if (sound == null || isQuitting) return;
+        EnsureClipReady(sound);
         EnsureAudioSources();
 
         if (bgmSource.clip == sound && bgmSource.isPlaying) return;
@@ -268,8 +360,9 @@ public class SoundManager : MonoBehaviour
     {
         if (isQuitting) return;
         EnsureAudioSources();
-        if (play)
+        if (play && sound != null)
         {
+            EnsureClipReady(sound);
             if (loopSource.clip != sound || !loopSource.isPlaying)
             {
                 loopSource.clip = sound;
@@ -295,7 +388,11 @@ public class SoundManager : MonoBehaviour
     public static void PlayWallImpact() => Instance?.PlaySound(Instance.wallImpactClip, 1f, true);
     public static void PlayWallTouch() => Instance?.PlaySound(Instance.wallTouchClip, 0.8f, true);
     public static void PlayLand() => Instance?.PlaySound(Instance.landClip, 0.85f, true);
-    public static void PlayWallSlide(bool isSliding) => Instance?.PlayLoopingSFX(Instance?.wallSlideClip, isSliding, 0.7f);
+    public static void PlayWallSlide(bool isSliding)
+    {
+        if (!isSliding && instance == null) return;
+        Instance?.PlayLoopingSFX(Instance?.wallSlideClip, isSliding, 0.7f);
+    }
     public static void PlayFootstep() => Instance?.PlaySound(Instance.walkClip, 0.5f, true);
     public static void PlayRespawn() => Instance?.PlaySound(Instance.respawnClip, 1f, false);
 
