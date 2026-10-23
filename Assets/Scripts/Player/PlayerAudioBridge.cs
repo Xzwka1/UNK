@@ -64,7 +64,7 @@ public class PlayerAudioBridge : MonoBehaviour
             respawn.Respawned -= OnPlayerRespawned;
         }
 
-        SoundManager.PlayWallSlide(false);
+        if (SoundManager.instance != null) SoundManager.PlayWallSlide(false);
     }
 
     private void Update()
@@ -74,7 +74,7 @@ public class PlayerAudioBridge : MonoBehaviour
             if (wasWallSliding)
             {
                 wasWallSliding = false;
-                SoundManager.PlayWallSlide(false);
+                if (SoundManager.instance != null) SoundManager.PlayWallSlide(false);
             }
             return;
         }
@@ -130,7 +130,7 @@ public class PlayerAudioBridge : MonoBehaviour
 
     private void OnPlayerDied()
     {
-        SoundManager.PlayWallSlide(false);
+        if (SoundManager.instance != null) SoundManager.PlayWallSlide(false);
         // If stress didn't already trigger overload death (e.g. hazard death), play default death
         if (stress == null || (!stress.IsLiquidLocked && !stress.IsBrittleLocked))
         {

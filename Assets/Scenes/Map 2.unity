@@ -132,6 +132,7 @@ GameObject:
   - component: {fileID: 137384459}
   - component: {fileID: 137384458}
   - component: {fileID: 137384457}
+  - component: {fileID: 137384460}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -302,6 +303,9 @@ MonoBehaviour:
   roomBoundsCollider: {fileID: 0}
   minBounds: {x: -20, y: -10}
   maxBounds: {x: 20, y: 10}
+  autoBoundsFromScene: 1
+  lockAspectRatio: 1
+  aspectRatio: {x: 16, y: 9}
 --- !u!114 &137384459
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -346,6 +350,14 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
+--- !u!81 &137384460
+AudioListener:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 137384454}
+  m_Enabled: 1
 --- !u!1 &216114295
 GameObject:
   m_ObjectHideFlags: 0

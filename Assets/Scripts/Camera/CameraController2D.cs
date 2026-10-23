@@ -131,6 +131,10 @@ public class CameraController2D : MonoBehaviour
         cam = GetComponent<Camera>();
         effects = GetComponent<CameraEffects>();
         z = transform.position.z;
+        if (GetComponent<AudioListener>() == null && FindFirstObjectByType<AudioListener>() == null)
+        {
+            gameObject.AddComponent<AudioListener>();
+        }
         if (lockAspectRatio) ApplyAspect(true);
 
         if (!cam.orthographic)

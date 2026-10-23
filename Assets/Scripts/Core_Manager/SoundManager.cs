@@ -9,16 +9,18 @@ using Random = UnityEngine.Random;
 public class SoundManager : MonoBehaviour
 {
     public static SoundManager instance;
+    private static bool isQuitting = false;
+
     public static SoundManager Instance
     {
         get
         {
+            if (isQuitting) return null;
             if (instance == null)
             {
                 instance = FindFirstObjectByType<SoundManager>();
-                if (instance == null)
+                if (instance == null && !isQuitting && Application.isPlaying)
                 {
-                    // Try loading from Resources prefab first
                     GameObject prefab = Resources.Load<GameObject>("SoundManager");
                     GameObject go;
                     if (prefab != null)
@@ -41,7 +43,7 @@ public class SoundManager : MonoBehaviour
     [Header("Audio Sources")]
     [SerializeField] private AudioSource sfxSource;
     [SerializeField] private AudioSource bgmSource;
-    [SerializeField] private AudioSource loopSource; // for continuous sounds like wall slide
+    [SerializeField] private AudioSource loopSource;
 
     [Header("Volume Settings")]
     [Range(0f, 1f)] [SerializeField] private float masterVolume = 1f;
@@ -84,7 +86,6 @@ public class SoundManager : MonoBehaviour
     [SerializeField] private AudioClip stageClearClip;
     [SerializeField] private AudioClip gameplayBGM;
 
-    // Properties for volume control
     public float MasterVolume
     {
         get => masterVolume;
@@ -112,6 +113,77 @@ public class SoundManager : MonoBehaviour
         instance = this;
         DontDestroyOnLoad(gameObject);
         EnsureAudioSources();
+        EnsureAudioListener();
+
+        // If this scene instance has unassigned clips, copy from Resources/SoundManager prefab
+        if (jumpClip == null)
+        {
+            CopyClipsFromPrefab();
+        }
+    }
+
+    private void OnApplicationQuit()
+    {
+        isQuitting = true;
+    }
+
+    private void OnDestroy()
+    {
+        if (instance == this)
+        {
+            instance = null;
+        }
+    }
+
+    public void EnsureAudioListener()
+    {
+        if (FindFirstObjectByType<AudioListener>() == null)
+        {
+            Camera cam = Camera.main;
+            if (cam != null && cam.GetComponent<AudioListener>() == null)
+            {
+                cam.gameObject.AddComponent<AudioListener>();
+            }
+            else if (GetComponent<AudioListener>() == null)
+            {
+                gameObject.AddComponent<AudioListener>();
+            }
+        }
+    }
+
+    private void CopyClipsFromPrefab()
+    {
+        GameObject prefab = Resources.Load<GameObject>("SoundManager");
+        if (prefab == null) return;
+        SoundManager p = prefab.GetComponent<SoundManager>();
+        if (p == null) return;
+
+        jumpClip = p.jumpClip;
+        doubleJumpClip = p.doubleJumpClip;
+        dashClip = p.dashClip;
+        dashEmergencyClip = p.dashEmergencyClip;
+        wallImpactClip = p.wallImpactClip;
+        wallSlideClip = p.wallSlideClip;
+        wallTouchClip = p.wallTouchClip;
+        landClip = p.landClip;
+        walkClip = p.walkClip;
+        respawnClip = p.respawnClip;
+
+        polaritySnapClip = p.polaritySnapClip;
+        liquidLockoutClip = p.liquidLockoutClip;
+        brittleLockoutClip = p.brittleLockoutClip;
+        bodyCrackClip = p.bodyCrackClip;
+        meltDeathClip = p.meltDeathClip;
+        crystalDeathClip = p.crystalDeathClip;
+
+        platformCrackClip = p.platformCrackClip;
+        platformBreakClip = p.platformBreakClip;
+        barrierBreakClip = p.barrierBreakClip;
+
+        buttonClickClip = p.buttonClickClip;
+        mainMenuBGM = p.mainMenuBGM;
+        stageClearClip = p.stageClearClip;
+        gameplayBGM = p.gameplayBGM;
     }
 
     private void EnsureAudioSources()
@@ -152,7 +224,7 @@ public class SoundManager : MonoBehaviour
 
     public void PlaySound(AudioClip sound, float volume, bool varyPitch)
     {
-        if (sound == null) return;
+        if (sound == null || isQuitting) return;
         EnsureAudioSources();
 
         if (varyPitch && usePitchVariation)
@@ -169,14 +241,14 @@ public class SoundManager : MonoBehaviour
 
     public void RandomPlaySound(AudioClip[] sound, float volume = 1f)
     {
-        if (sound == null || sound.Length == 0) return;
+        if (sound == null || sound.Length == 0 || isQuitting) return;
         AudioClip clip = sound[Random.Range(0, sound.Length)];
         if (clip != null) PlaySound(clip, volume, true);
     }
 
     public void PlayBGM(AudioClip sound, float volume = 1f)
     {
-        if (sound == null) return;
+        if (sound == null || isQuitting) return;
         EnsureAudioSources();
 
         if (bgmSource.clip == sound && bgmSource.isPlaying) return;
@@ -194,6 +266,7 @@ public class SoundManager : MonoBehaviour
 
     public void PlayLoopingSFX(AudioClip sound, bool play, float volume = 1f)
     {
+        if (isQuitting) return;
         EnsureAudioSources();
         if (play)
         {
@@ -206,7 +279,7 @@ public class SoundManager : MonoBehaviour
         }
         else
         {
-            if (loopSource.isPlaying) loopSource.Stop();
+            if (loopSource != null && loopSource.isPlaying) loopSource.Stop();
         }
     }
 
@@ -222,7 +295,7 @@ public class SoundManager : MonoBehaviour
     public static void PlayWallImpact() => Instance?.PlaySound(Instance.wallImpactClip, 1f, true);
     public static void PlayWallTouch() => Instance?.PlaySound(Instance.wallTouchClip, 0.8f, true);
     public static void PlayLand() => Instance?.PlaySound(Instance.landClip, 0.85f, true);
-    public static void PlayWallSlide(bool isSliding) => Instance?.PlayLoopingSFX(Instance.wallSlideClip, isSliding, 0.7f);
+    public static void PlayWallSlide(bool isSliding) => Instance?.PlayLoopingSFX(Instance?.wallSlideClip, isSliding, 0.7f);
     public static void PlayFootstep() => Instance?.PlaySound(Instance.walkClip, 0.5f, true);
     public static void PlayRespawn() => Instance?.PlaySound(Instance.respawnClip, 1f, false);
 
@@ -267,7 +340,6 @@ public class SoundManager : MonoBehaviour
     [ContextMenu("Auto-Assign Audio Clips From Project")]
     public void AutoAssignClips()
     {
-        // Player Movement
         jumpClip = LoadClip("Assets/Sound/Week-1/Slime-Jump.mp3");
         doubleJumpClip = LoadClip("Assets/Sound/Week-1/Slime-Double-Jump.mp3");
         dashClip = LoadClip("Assets/Sound/Week-1/Slime-Dash.mp3");
@@ -279,7 +351,6 @@ public class SoundManager : MonoBehaviour
         wallTouchClip = LoadClip("Assets/Sound/Week-1/Slime-ตัวละครโดยกำแพง.mp3");
         respawnClip = LoadClip("Assets/Sound/Week-1/Slime-Respawn.mp3");
 
-        // Stress & Polarity
         polaritySnapClip = LoadClip("Assets/Sound/Week-2/ตอนสลับขั่ว.mp3");
         liquidLockoutClip = LoadClip("Assets/Sound/Week-2/เสียงตอนละลายกดท่าไม่ติด.mp3");
         brittleLockoutClip = LoadClip("Assets/Sound/Week-2/กลางเป็นของแข็งกดท่าไม่ติด.mp3");
@@ -287,12 +358,10 @@ public class SoundManager : MonoBehaviour
         meltDeathClip = LoadClip("Assets/Sound/Week-1/Slime-Death.mp3");
         crystalDeathClip = LoadClip("Assets/Sound/Week-2/ตายแบบแก้วแตก.mp3");
 
-        // Environment
         platformCrackClip = LoadClip("Assets/Sound/Week-1/Slime-พื้นร้าว.mp3");
         platformBreakClip = LoadClip("Assets/Sound/Week-2/พื้นพัง.mp3");
         barrierBreakClip = LoadClip("Assets/Sound/Week-1/Impact-Wall.mp3");
 
-        // UI & BGM
         buttonClickClip = LoadClip("Assets/Sound/Week-1/Button-Menu.mp3");
         mainMenuBGM = LoadClip("Assets/Sound/Week-2/เสียงตอน Main Menu.mp3");
         stageClearClip = LoadClip("Assets/Sound/Week-2/เพลงตอนจบ.mp3");
