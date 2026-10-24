@@ -131,6 +131,10 @@ public class CameraController2D : MonoBehaviour
         cam = GetComponent<Camera>();
         effects = GetComponent<CameraEffects>();
         z = transform.position.z;
+        if (GetComponent<AudioListener>() == null && FindFirstObjectByType<AudioListener>() == null)
+        {
+            gameObject.AddComponent<AudioListener>();
+        }
         if (lockAspectRatio) ApplyAspect(true);
 
         if (!cam.orthographic)
@@ -171,7 +175,7 @@ public class CameraController2D : MonoBehaviour
     {
         if (target == null)
         {
-            PlayerController2D found = FindFirstObjectByType<PlayerController2D>();
+            PlayerController2D found = FindAnyObjectByType<PlayerController2D>();
             if (found == null) return false;
             target = found.transform;
         }

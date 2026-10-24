@@ -335,7 +335,7 @@ public class Level1GauntletGenerator : MonoBehaviour
         spawn.SetParent(root, false);
         spawn.localPosition = spawnLocal;
 
-        if (player == null) player = FindFirstObjectByType<PlayerRespawn>();
+        if (player == null) player = FindAnyObjectByType<PlayerRespawn>();
         if (player == null) return;
 
         player.spawnPoint = spawn;

@@ -30,6 +30,7 @@ public class MainMenu : MonoBehaviour
         Time.timeScale = 1f;
         BuildEventSystem();
         BuildUI();
+        SoundManager.PlayMainMenuMusic();
     }
 
     private void BuildEventSystem()
@@ -88,10 +89,15 @@ public class MainMenu : MonoBehaviour
         EventSystem.current.SetSelectedGameObject(startButton.gameObject);
     }
 
-    private void OnStart() => SceneManager.LoadScene(firstSceneName);
+    private void OnStart()
+    {
+        SoundManager.PlayButtonClick();
+        SceneManager.LoadScene(firstSceneName);
+    }
 
     private void OnExit()
     {
+        SoundManager.PlayButtonClick();
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else

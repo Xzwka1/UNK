@@ -286,8 +286,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MainMenu
   firstSceneName: Map 1
-  title: THE FRAGILE EQUILIBRIUM
-  subtitle: Balance the liquid. Respect the crystal.
   backgroundTop: {r: 0.08, g: 0.09, b: 0.16, a: 1}
   backgroundBottom: {r: 0.02, g: 0.02, b: 0.05, a: 1}
   tensileGlow: {r: 1, g: 0.45, b: 0.1, a: 0.22}

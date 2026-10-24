@@ -302,6 +302,9 @@ MonoBehaviour:
   roomBoundsCollider: {fileID: 0}
   minBounds: {x: -20, y: -10}
   maxBounds: {x: 20, y: 10}
+  autoBoundsFromScene: 1
+  lockAspectRatio: 1
+  aspectRatio: {x: 16, y: 9}
 --- !u!114 &137384459
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -620,8 +623,7 @@ Transform:
   m_LocalPosition: {x: 0, y: -0.6875, z: 0}
   m_LocalScale: {x: 0.35, y: 0.35, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 1464780403}
+  m_Children: []
   m_Father: {fileID: 1168330942}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &687852902
@@ -741,7 +743,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3d2fbe45d4e144c46ba0a0916284bc3b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerRespawn
-  respawnDelay: 0.35
+  respawnDelay: 0.2
   meltdownSlideDownSpeed: 3.5
   spawnPoint: {fileID: 0}
 --- !u!114 &1168330937
@@ -794,9 +796,11 @@ MonoBehaviour:
   apexThreshold: 2
   jumpHeight: 3.2
   airJumpHeight: 2.5
-  dashSpeed: 12
-  dashDuration: 0.5
+  maxAirJumps: 1
+  dashSpeed: 24
+  dashDuration: 0.15
   dashFreezeDuration: 0.05
+  maxDashes: 1
   dashCooldown: 0.2
   dashExitSpeedMultiplier: 0.6
   resampleDirectionAfterFreeze: 1
@@ -807,15 +811,15 @@ MonoBehaviour:
   wallJumpHeight: 2.5
   wallJumpControlLock: 0.12
   maxWallJumps: 5
-  lockoutFeedbackCooldown: 0.35
   wallMeltdownSlideStressRate: 60
-  heavyLandingVelocityThreshold: 16
-  coyoteTime: 0.1
-  wallCoyoteTime: 0.08
-  jumpBufferTime: 0.12
-  airJumpLandingBufferDistance: 0.6
-  cornerCorrectionPixels: 4
-  cornerCorrectionOnJump: 1
+  heavyLandingSpeedThreshold: -16
+  assists:
+    coyoteTime: 0.1
+    wallCoyoteTime: 0.08
+    jumpBufferTime: 0.12
+    airJumpLandingBufferDistance: 0.6
+    cornerCorrectionPixels: 4
+    cornerCorrectionOnJump: 1
   groundMask:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -850,11 +854,11 @@ MonoBehaviour:
   heavyLandingStress: -15
   playerSpriteRenderer: {fileID: 687852902}
   polaritySnapFlashDuration: 0.1
-  crystalCrackOverlay: {fileID: 1464780404}
+  crystalCrackOverlay: {fileID: 0}
   brittleShatterFrameSprite: {fileID: -2610990157313487943, guid: b57d700924b580c45bd200a734dc8897, type: 3}
   crystalShatterParticles: {fileID: 0}
   currentStress: 0
-  OnStressChanged:
+  OnStressChangedInstance:
     m_PersistentCalls:
       m_Calls: []
   OnThermalShock:
@@ -992,100 +996,8 @@ MonoBehaviour:
   rb: {fileID: 1168330941}
   animator: {fileID: 687852903}
   spriteRenderer: {fileID: 687852902}
-  crystalCrackOverlay: {fileID: 1464780404}
+  crystalCrackOverlay: {fileID: 0}
   artworkFacesLeft: 0
---- !u!1 &1464780402
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1464780403}
-  - component: {fileID: 1464780404}
-  m_Layer: 0
-  m_Name: CrystalOverlay
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1464780403
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1464780402}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 687852901}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!212 &1464780404
-SpriteRenderer:
-  serializedVersion: 3
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1464780402}
-  m_Enabled: 0
-  m_CastShadows: 0
-  m_ReceiveShadows: 0
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 0
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_ForceMeshLod: -1
-  m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 2100000, guid: a97c105638bdf8b4a8650670310a4cd3, type: 2}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 0
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 11
-  m_MaskInteraction: 0
-  m_Sprite: {fileID: -7037452352178220537, guid: 9cad10337b5c95f449ba5b0ca4818d7f, type: 3}
-  m_Color: {r: 1, g: 1, b: 1, a: 0}
-  m_FlipX: 0
-  m_FlipY: 0
-  m_DrawMode: 0
-  m_Size: {x: 3.7, y: 5.07}
-  m_AdaptiveModeThreshold: 0.5
-  m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 1
-  m_SpriteSortPoint: 0
-  m_BlendShapeWeights: []
 --- !u!1 &1588447625
 GameObject:
   m_ObjectHideFlags: 0
@@ -1133,9 +1045,11 @@ MonoBehaviour:
   visualRoot: {fileID: 415428649}
   spriteRenderer: {fileID: 415428648}
   animator: {fileID: 0}
-  normalSprite: {fileID: 0}
-  crackingSprite: {fileID: 0}
-  reformingSprite: {fileID: 0}
+  normalSprite: {fileID: 5750678877975532995, guid: ac3ee3e7e7660c343aaf34857c522ada, type: 3}
+  crackingSprite: {fileID: 1941086601516833325, guid: 8089c255b846c264eb1bcbf9ade6c0bc, type: 3}
+  breakingSprite: {fileID: 2842861179677328681, guid: 24635b78022fb3d4286646d18812beae, type: 3}
+  reformingEarlySprite: {fileID: 1992862751166075669, guid: 961a1c0a764d0d749b0225da23d023f5, type: 3}
+  reformingSprite: {fileID: -5276867040034731545, guid: e6dfccf2339c0194e934151018af30d6, type: 3}
   crackingTint: {r: 1, g: 0.75, b: 0.6, a: 1}
   shakeAmplitude: 0.05
   shakeFrequency: 40

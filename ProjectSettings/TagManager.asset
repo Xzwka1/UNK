@@ -2,7 +2,7 @@
 %TAG !u! tag:unity3d.com,2011:
 --- !u!78 &1
 TagManager:
-  serializedVersion: 2
+  serializedVersion: 3
   tags: []
   layers:
   - Default
@@ -13,14 +13,14 @@ TagManager:
   - UI
   - 
   - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  - Ground
+  - Player
+  - PlayerProjectile
+  - Enemy
+  - EnemyProjectile
+  - Interactable
+  - OneWayPlatform
+  - TriggerZone
   - 
   - 
   - 
@@ -41,3 +41,30 @@ TagManager:
   - name: Default
     uniqueID: 0
     locked: 0
+  - name: Background
+    uniqueID: 1001
+    locked: 0
+  - name: Midground
+    uniqueID: 1002
+    locked: 0
+  - name: Ground
+    uniqueID: 1003
+    locked: 0
+  - name: Interactables
+    uniqueID: 1004
+    locked: 0
+  - name: Entities
+    uniqueID: 1005
+    locked: 0
+  - name: Foreground
+    uniqueID: 1006
+    locked: 0
+  - name: VFX
+    uniqueID: 1007
+    locked: 0
+  - name: UI
+    uniqueID: 1008
+    locked: 0
+  m_RenderingLayers:
+  - Default
+  m_MigratedRenderPipelines: []
