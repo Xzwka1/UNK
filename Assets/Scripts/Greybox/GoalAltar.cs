@@ -3,13 +3,15 @@ using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Delivery goal altar. Put on a trigger collider; when the player touches it,
+/// Delivery goal altar. Put on a trigger collider; when the player touches it with all 3 QuestBoxes,
 /// fires <see cref="OnGoalReached"/> and loads the next scene in Build Settings (buildIndex + 1).
 /// </summary>
 [RequireComponent(typeof(Collider2D))]
 public class GoalAltar : MonoBehaviour
 {
     [Header("Next Map Teleport")]
+    [Tooltip("Number of QuestBoxes required to activate the goal teleport.")]
+    [SerializeField] private int requiredBoxes = 3;
     [Tooltip("Automatically load SceneManager.GetActiveScene().buildIndex + 1 when touched.")]
     [SerializeField] private bool loadNextScene = true;
 
@@ -17,6 +19,7 @@ public class GoalAltar : MonoBehaviour
     public UnityEvent OnGoalReached;
 
     public bool Reached { get; private set; }
+    private float lastDeniedTime = -10f;
 
     private void Reset()
     {
@@ -27,6 +30,15 @@ public class GoalAltar : MonoBehaviour
     {
         if (Reached) return;
         if (other.GetComponentInParent<PlayerController2D>() == null) return;
+
+        int collected = QuestBoxManager.Instance != null ? QuestBoxManager.Instance.CollectedCount : 0;
+        if (requiredBoxes > 0 && collected < requiredBoxes)
+        {
+            if (Time.unscaledTime - lastDeniedTime < 0.5f) return;
+            lastDeniedTime = Time.unscaledTime;
+            QuestBoxManager.Instance?.NotifyInsufficientBoxes(requiredBoxes);
+            return;
+        }
 
         Reached = true;
         Debug.Log("[GoalAltar] Goal reached!");

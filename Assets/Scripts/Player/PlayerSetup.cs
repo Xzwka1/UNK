@@ -134,6 +134,7 @@ public class PlayerSetup : MonoBehaviour
         if (runtime) Ensure<StressBarHUD>(gameObject); // new hand-drawn vertical gauge (replaces StressBarOverhead)
         if (runtime) Ensure<LockoutFeedbackIcons>(gameObject);
         if (runtime) Ensure<PlayerAudioBridge>(gameObject);
+        if (runtime) _ = QuestBoxManager.Instance;
 
         // --- Ensure gameplay camera isn't zoomed out to 20 units.
         Camera mainCam = Camera.main;
