@@ -416,6 +416,12 @@ public class SoundManager : MonoBehaviour
     public static void PlayBarrierBreak() => Instance?.PlaySound(Instance.barrierBreakClip, 1f, false);
 
     public static void PlayButtonClick() => Instance?.PlaySound(Instance.buttonClickClip, 1f, false);
+    public static void PlayItemPickup()
+    {
+        if (Instance == null) return;
+        AudioClip clip = Instance.buttonClickClip != null ? Instance.buttonClickClip : Instance.respawnClip;
+        Instance.PlaySound(clip, 1f, true);
+    }
     public static void PlayStageClear() => Instance?.PlaySound(Instance.stageClearClip, 1f, false);
     public static void PlayMainMenuMusic()
     {
