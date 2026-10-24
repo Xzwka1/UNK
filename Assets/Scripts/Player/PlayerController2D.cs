@@ -115,6 +115,8 @@ public class PlayerController2D : MonoBehaviour
     public bool IsGripping => gripping;
     public bool IsWallMeltdownSliding => wallMeltdownSliding;
     public bool IsDashing => state == MoveState.Dashing || state == MoveState.DashFreeze;
+    public Vector2 DashDirection => dashDir;
+    public event System.Action<Vector2, bool> DashStarted;
     public bool CanDoubleJump => airJumpsLeft > 0;
     public int WallSide => wallSide;
     public int Facing => facing;
@@ -518,6 +520,7 @@ public class PlayerController2D : MonoBehaviour
                 stress.ApplyNormalDashStress();
         }
         SoundManager.PlayDash(isEmergencyDash);
+        DashStarted?.Invoke(dashDir, isEmergencyDash);
 
         // Break any BreakingBarrier already in contact or directly in front of the dash.
         BreakBarriersAlongStep(dashDir * (dashSpeed * Time.fixedDeltaTime));
