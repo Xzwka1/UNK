@@ -35,6 +35,36 @@ public class PlayerAnimator2D : MonoBehaviour
     [Tooltip("Particle offset when facing right (X is flipped when facing left).")]
     [SerializeField] private Vector3 runParticleOffset = new Vector3(-0.35f, -0.66f, 0f);
 
+    [Header("Wall Jump VFX")]
+    [Tooltip("Particle system emitted when the player performs a wall jump.")]
+    [SerializeField] private ParticleSystem wallJumpParticles;
+    [Tooltip("Particle offset when the wall is on the right (+X). Flipped on X when the wall is on the left.")]
+    [SerializeField] private Vector3 wallJumpParticleOffset = new Vector3(0.44f, 0f, 0f);
+    [Tooltip("If true, particles spray away from the wall into the room. If false, spray towards the wall.")]
+    [SerializeField] private bool sprayAwayFromWall = true;
+    [Tooltip("Burst count override. Set to 0 to use the ParticleSystem emission burst setting.")]
+    [SerializeField] private int wallJumpBurstCount = 0;
+
+    [Header("Death VFX")]
+    [Tooltip("Particle system emitted when the player dies (e.g. Dead Particle).")]
+    [SerializeField] private ParticleSystem deadParticles;
+    [Tooltip("Particle offset relative to player center on death.")]
+    [SerializeField] private Vector3 deadParticleOffset = new Vector3(0f, -0.11f, 0f);
+    [Tooltip("Stress threshold below which death is considered negative death. If stress <= threshold, deadParticles will not play.")]
+    [SerializeField] private float negativeDeathThreshold = -99f;
+
+    [Header("Wall Slide VFX")]
+    [Tooltip("Particle system emitted continuously while sliding down a wall.")]
+    [SerializeField] private ParticleSystem wallSlideParticles;
+    [Tooltip("Particle offset when wall is on the right (+X). Flipped on X when wall is on the left.")]
+    [SerializeField] private Vector3 wallSlideParticleOffset = new Vector3(0.44f, 0f, 0f);
+    [Tooltip("Minimum downward speed (-vel.y) to trigger wall slide particles.")]
+    [SerializeField] private float minWallSlideSpeed = 0.1f;
+    [Tooltip("Tilt angle (in degrees) away from the wall while sliding down. Set to 0 to keep it straight vertical without tilting.")]
+    [SerializeField] private float wallSlideTiltAngle = 0f;
+    [Tooltip("If true, requires grip to be held to emit wall slide particles. If false, touching a wall while sliding down is enough.")]
+    [SerializeField] private bool requireGripForWallSlide = true;
+
     [Header("Facing")]
     [Tooltip("Invert sprite horizontal flip if artwork faces left by default (false = artwork faces right).")]
     [SerializeField] private bool artworkFacesLeft = false;
@@ -64,7 +94,10 @@ public class PlayerAnimator2D : MonoBehaviour
         SpriteRenderer crackOverlay,
         ParticleSystem slimeParticles = null,
         ParticleSystem dashPs = null,
-        ParticleSystem dashTrailPs = null)
+        ParticleSystem dashTrailPs = null,
+        ParticleSystem wallJumpPs = null,
+        ParticleSystem deadPs = null,
+        ParticleSystem wallSlidePs = null)
     {
         controller = ctrl;
         stress = playerStress;
@@ -76,6 +109,9 @@ public class PlayerAnimator2D : MonoBehaviour
         if (slimeParticles != null) runSlimeParticles = slimeParticles;
         if (dashPs != null) dashParticles = dashPs;
         if (dashTrailPs != null) dashTrailParticles = dashTrailPs;
+        if (wallJumpPs != null) wallJumpParticles = wallJumpPs;
+        if (deadPs != null) deadParticles = deadPs;
+        if (wallSlidePs != null) wallSlideParticles = wallSlidePs;
     }
 
     private void Reset()
@@ -132,6 +168,49 @@ public class PlayerAnimator2D : MonoBehaviour
             }
             if (trailTf != null)
                 dashTrailParticles = trailTf.GetComponent<ParticleSystem>();
+        }
+
+        if (wallJumpParticles == null)
+        {
+            Transform wjTf = transform.Find("WallJump Particle");
+            if (wjTf == null) wjTf = transform.Find("Wall Jump Particle");
+            if (wjTf == null) wjTf = transform.Find("WallJump VFX");
+            if (wjTf == null && transform.parent != null)
+            {
+                wjTf = transform.parent.Find("WallJump Particle");
+                if (wjTf == null) wjTf = transform.parent.Find("Wall Jump Particle");
+                if (wjTf == null) wjTf = transform.parent.Find("WallJump VFX");
+            }
+            if (wjTf != null)
+                wallJumpParticles = wjTf.GetComponent<ParticleSystem>();
+        }
+
+        if (deadParticles == null)
+        {
+            Transform deadTf = transform.Find("Dead Particle");
+            if (deadTf == null) deadTf = transform.Find("Death Particle");
+            if (deadTf == null && transform.parent != null)
+            {
+                deadTf = transform.parent.Find("Dead Particle");
+                if (deadTf == null) deadTf = transform.parent.Find("Death Particle");
+            }
+            if (deadTf != null)
+                deadParticles = deadTf.GetComponent<ParticleSystem>();
+        }
+
+        if (wallSlideParticles == null)
+        {
+            Transform wsTf = transform.Find("WallSlide Particle");
+            if (wsTf == null) wsTf = transform.Find("Wall Slide Particle");
+            if (wsTf == null) wsTf = transform.Find("WallSlide VFX");
+            if (wsTf == null && transform.parent != null)
+            {
+                wsTf = transform.parent.Find("WallSlide Particle");
+                if (wsTf == null) wsTf = transform.parent.Find("Wall Slide Particle");
+                if (wsTf == null) wsTf = transform.parent.Find("WallSlide VFX");
+            }
+            if (wsTf != null)
+                wallSlideParticles = wsTf.GetComponent<ParticleSystem>();
         }
 
         if (dashTrailRenderer == null)
@@ -219,6 +298,49 @@ public class PlayerAnimator2D : MonoBehaviour
                 dashTrailParticles = trailTf.GetComponent<ParticleSystem>();
         }
 
+        if (wallJumpParticles == null)
+        {
+            Transform wjTf = transform.Find("WallJump Particle");
+            if (wjTf == null) wjTf = transform.Find("Wall Jump Particle");
+            if (wjTf == null) wjTf = transform.Find("WallJump VFX");
+            if (wjTf == null && transform.parent != null)
+            {
+                wjTf = transform.parent.Find("WallJump Particle");
+                if (wjTf == null) wjTf = transform.parent.Find("Wall Jump Particle");
+                if (wjTf == null) wjTf = transform.parent.Find("WallJump VFX");
+            }
+            if (wjTf != null)
+                wallJumpParticles = wjTf.GetComponent<ParticleSystem>();
+        }
+
+        if (deadParticles == null)
+        {
+            Transform deadTf = transform.Find("Dead Particle");
+            if (deadTf == null) deadTf = transform.Find("Death Particle");
+            if (deadTf == null && transform.parent != null)
+            {
+                deadTf = transform.parent.Find("Dead Particle");
+                if (deadTf == null) deadTf = transform.parent.Find("Death Particle");
+            }
+            if (deadTf != null)
+                deadParticles = deadTf.GetComponent<ParticleSystem>();
+        }
+
+        if (wallSlideParticles == null)
+        {
+            Transform wsTf = transform.Find("WallSlide Particle");
+            if (wsTf == null) wsTf = transform.Find("Wall Slide Particle");
+            if (wsTf == null) wsTf = transform.Find("WallSlide VFX");
+            if (wsTf == null && transform.parent != null)
+            {
+                wsTf = transform.parent.Find("WallSlide Particle");
+                if (wsTf == null) wsTf = transform.parent.Find("Wall Slide Particle");
+                if (wsTf == null) wsTf = transform.parent.Find("WallSlide VFX");
+            }
+            if (wsTf != null)
+                wallSlideParticles = wsTf.GetComponent<ParticleSystem>();
+        }
+
         if (runSlimeParticles != null)
         {
             if (runParticleOffset == Vector3.zero)
@@ -245,6 +367,29 @@ public class PlayerAnimator2D : MonoBehaviour
             dashTrailParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         }
 
+        if (wallJumpParticles != null)
+        {
+            var main = wallJumpParticles.main;
+            main.playOnAwake = false;
+            wallJumpParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+
+        if (deadParticles != null)
+        {
+            var main = deadParticles.main;
+            main.playOnAwake = false;
+            deadParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+
+        if (wallSlideParticles != null)
+        {
+            var main = wallSlideParticles.main;
+            main.playOnAwake = false;
+            var em = wallSlideParticles.emission;
+            em.enabled = false;
+            wallSlideParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+
         if (dashTrailRenderer == null)
             dashTrailRenderer = FindDashTrailRenderer();
         ResetDashTrail();
@@ -256,24 +401,40 @@ public class PlayerAnimator2D : MonoBehaviour
         if (stress == null) stress = GetComponentInParent<PlayerStress>();
         if (respawn == null) respawn = GetComponentInParent<PlayerRespawn>();
 
-        if (controller != null) controller.DashStarted += OnDashStarted;
+        if (controller != null)
+        {
+            controller.DashStarted += OnDashStarted;
+            controller.WallJumped += OnWallJumped;
+        }
         if (stress != null)
         {
             stress.OnLiquidLockoutFail.AddListener(OnLiquidLockoutFail);
             stress.OnBrittleWallSlip.AddListener(OnBrittleWallSlip);
         }
-        if (respawn != null) respawn.Respawned += OnPlayerRespawned;
+        if (respawn != null)
+        {
+            respawn.Died += OnPlayerDied;
+            respawn.Respawned += OnPlayerRespawned;
+        }
     }
 
     private void OnDisable()
     {
-        if (controller != null) controller.DashStarted -= OnDashStarted;
+        if (controller != null)
+        {
+            controller.DashStarted -= OnDashStarted;
+            controller.WallJumped -= OnWallJumped;
+        }
         if (stress != null)
         {
             stress.OnLiquidLockoutFail.RemoveListener(OnLiquidLockoutFail);
             stress.OnBrittleWallSlip.RemoveListener(OnBrittleWallSlip);
         }
-        if (respawn != null) respawn.Respawned -= OnPlayerRespawned;
+        if (respawn != null)
+        {
+            respawn.Died -= OnPlayerDied;
+            respawn.Respawned -= OnPlayerRespawned;
+        }
 
         if (runSlimeParticles != null)
         {
@@ -291,6 +452,20 @@ public class PlayerAnimator2D : MonoBehaviour
         {
             dashTrailParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         }
+        if (wallJumpParticles != null)
+        {
+            wallJumpParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+        if (deadParticles != null)
+        {
+            deadParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+        if (wallSlideParticles != null)
+        {
+            var em = wallSlideParticles.emission;
+            em.enabled = false;
+            wallSlideParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
         ResetDashTrail();
     }
 
@@ -306,6 +481,7 @@ public class PlayerAnimator2D : MonoBehaviour
         UpdateFacingFlip();
         UpdateRunParticles(vel, isDead);
         UpdateDashParticles(isDead);
+        UpdateWallSlideParticles(vel, isDead);
 
         if (!HasAnimator) return;
 
@@ -478,6 +654,20 @@ public class PlayerAnimator2D : MonoBehaviour
         {
             dashTrailParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         }
+        if (wallJumpParticles != null)
+        {
+            wallJumpParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+        if (deadParticles != null)
+        {
+            deadParticles.Stop(false, ParticleSystemStopBehavior.StopEmitting);
+        }
+        if (wallSlideParticles != null)
+        {
+            var em = wallSlideParticles.emission;
+            em.enabled = false;
+            wallSlideParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
         ResetDashTrail();
         if (!HasAnimator) return;
         animator.ResetTrigger(TrigDoubleJump);
@@ -485,5 +675,133 @@ public class PlayerAnimator2D : MonoBehaviour
         animator.ResetTrigger(TrigBrittleSlip);
         animator.SetBool(ParamIsDead, false);
         animator.Play(StateIdle, 0, 0f);
+    }
+
+    private void OnWallJumped(int wallSide)
+    {
+        if (wallJumpParticles == null) return;
+
+        // Position at wall contact point
+        float sign = wallSide > 0 ? 1f : -1f;
+        wallJumpParticles.transform.localPosition = new Vector3(
+            wallJumpParticleOffset.x * sign,
+            wallJumpParticleOffset.y,
+            wallJumpParticleOffset.z);
+
+        // Rotation: default cone points in +X.
+        // If wall is on right (wallSide > 0) and spraying away from wall, face -X (180 deg).
+        // If wall is on left (wallSide < 0) and spraying away from wall, face +X (0 deg).
+        // If spraying toward the wall, invert this behavior.
+        bool faceLeft = sprayAwayFromWall ? (wallSide > 0) : (wallSide < 0);
+        wallJumpParticles.transform.localEulerAngles = new Vector3(0f, faceLeft ? 180f : 0f, 0f);
+
+        int burst = wallJumpBurstCount;
+        if (burst <= 0)
+        {
+            var bursts = new ParticleSystem.Burst[wallJumpParticles.emission.burstCount];
+            wallJumpParticles.emission.GetBursts(bursts);
+            burst = (bursts != null && bursts.Length > 0 && bursts[0].maxCount > 0) ? bursts[0].maxCount : 30;
+        }
+
+        wallJumpParticles.Emit(burst);
+
+        if (!wallJumpParticles.isPlaying)
+            wallJumpParticles.Play();
+    }
+
+    private void OnPlayerDied()
+    {
+        // Stop locomotion / dash particles on death
+        if (runSlimeParticles != null)
+        {
+            var em = runSlimeParticles.emission;
+            em.enabled = false;
+            runSlimeParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+        if (dashParticles != null)
+        {
+            var em = dashParticles.emission;
+            em.enabled = false;
+            dashParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+        if (dashTrailParticles != null)
+        {
+            dashTrailParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+        if (wallSlideParticles != null)
+        {
+            var em = wallSlideParticles.emission;
+            em.enabled = false;
+            wallSlideParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+        ResetDashTrail();
+
+        if (deadParticles == null) return;
+
+        // ไม่ทำงานตอนตายติดลบ (เช่น Crystal Shatter Overload / Slime_ร่างแข็ง)
+        bool isNegativeDeath = stress != null && stress.Current <= negativeDeathThreshold;
+        if (isNegativeDeath) return;
+
+        deadParticles.transform.localPosition = deadParticleOffset;
+
+        var bursts = new ParticleSystem.Burst[deadParticles.emission.burstCount];
+        deadParticles.emission.GetBursts(bursts);
+        int burst = (bursts != null && bursts.Length > 0 && bursts[0].maxCount > 0) ? bursts[0].maxCount : 20;
+        deadParticles.Emit(burst);
+
+        if (!deadParticles.isPlaying)
+            deadParticles.Play();
+    }
+
+    private void UpdateWallSlideParticles(Vector2 vel, bool isDead)
+    {
+        if (wallSlideParticles == null) return;
+
+        int wallSide = controller != null ? controller.WallSide : 0;
+        bool gripOk = !requireGripForWallSlide || (controller != null && controller.IsGripping);
+
+        // Slide DOWN only: touching wall, airborne, moving downward (vel.y < -minWallSlideSpeed), never when climbing up
+        bool isSlidingDown = !isDead
+            && controller != null
+            && gripOk
+            && wallSide != 0
+            && !controller.IsGrounded
+            && !controller.IsDashing
+            && vel.y < -minWallSlideSpeed;
+
+        if (isSlidingDown)
+        {
+            // Position at wall contact point
+            wallSlideParticles.transform.localPosition = new Vector3(
+                wallSlideParticleOffset.x * wallSide,
+                wallSlideParticleOffset.y,
+                wallSlideParticleOffset.z);
+
+            if (Mathf.Abs(wallSlideTiltAngle) > 0.01f)
+            {
+                float zAngle = wallSide > 0 ? wallSlideTiltAngle : -wallSlideTiltAngle;
+                wallSlideParticles.transform.localEulerAngles = new Vector3(0f, 0f, zAngle);
+            }
+            else
+            {
+                wallSlideParticles.transform.localEulerAngles = Vector3.zero;
+            }
+        }
+
+        var em = wallSlideParticles.emission;
+        if (em.enabled != isSlidingDown)
+        {
+            em.enabled = isSlidingDown;
+        }
+
+        if (isSlidingDown)
+        {
+            if (!wallSlideParticles.isPlaying)
+                wallSlideParticles.Play();
+        }
+        else if (wallSlideParticles.isPlaying && !em.enabled)
+        {
+            wallSlideParticles.Stop(false, ParticleSystemStopBehavior.StopEmitting);
+        }
     }
 }

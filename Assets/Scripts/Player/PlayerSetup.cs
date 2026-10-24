@@ -201,8 +201,22 @@ public class PlayerSetup : MonoBehaviour
                 if (dashTrailTf == null) dashTrailTf = transform.Find("DashTrail");
                 ParticleSystem dashTrailPs = dashTrailTf != null ? dashTrailTf.GetComponent<ParticleSystem>() : null;
 
+                Transform wjTf = transform.Find("WallJump Particle");
+                if (wjTf == null) wjTf = transform.Find("Wall Jump Particle");
+                if (wjTf == null) wjTf = transform.Find("WallJump VFX");
+                ParticleSystem wjPs = wjTf != null ? wjTf.GetComponent<ParticleSystem>() : null;
+
+                Transform deadTf = transform.Find("Dead Particle");
+                if (deadTf == null) deadTf = transform.Find("Death Particle");
+                ParticleSystem deadPs = deadTf != null ? deadTf.GetComponent<ParticleSystem>() : null;
+
+                Transform wsTf = transform.Find("WallSlide Particle");
+                if (wsTf == null) wsTf = transform.Find("Wall Slide Particle");
+                if (wsTf == null) wsTf = transform.Find("WallSlide VFX");
+                ParticleSystem wsPs = wsTf != null ? wsTf.GetComponent<ParticleSystem>() : null;
+
                 var playerAnim = Ensure<PlayerAnimator2D>(gameObject);
-                playerAnim.BindReferences(ctrl, stress, respawn, rb, anim, sr, overlaySr, slimePs, dashPs, dashTrailPs);
+                playerAnim.BindReferences(ctrl, stress, respawn, rb, anim, sr, overlaySr, slimePs, dashPs, dashTrailPs, wjPs, deadPs, wsPs);
             }
             else
             {

@@ -117,6 +117,7 @@ public class PlayerController2D : MonoBehaviour
     public bool IsDashing => state == MoveState.Dashing || state == MoveState.DashFreeze;
     public Vector2 DashDirection => dashDir;
     public event System.Action<Vector2, bool> DashStarted;
+    public event System.Action<int> WallJumped;
     public bool CanDoubleJump => airJumpsLeft > 0;
     public int WallSide => wallSide;
     public int Facing => facing;
@@ -454,6 +455,7 @@ public class PlayerController2D : MonoBehaviour
                 jumpRising = true;
                 if (stress != null) stress.ApplyWallJumpStress();
                 SoundManager.PlayJump();
+                WallJumped?.Invoke(lastWallSide);
                 return true;
             }
         }
