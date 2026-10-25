@@ -145,7 +145,7 @@ public class PlayerController2D : MonoBehaviour
 
     private void Update()
     {
-        if (!controlEnabled)
+        if (!controlEnabled || Time.timeScale <= 0.001f)
         {
             input = default;
             jumpPressLatch = dashPressLatch = false;
