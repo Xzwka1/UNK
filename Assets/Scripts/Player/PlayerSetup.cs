@@ -189,8 +189,34 @@ public class PlayerSetup : MonoBehaviour
                 if (stress != null)
                     stress.ConfigureVisuals(sr, overlaySr, brittleShatterSprite);
 
+                Transform slimeTf = transform.Find("Slime Particle");
+                if (slimeTf == null) slimeTf = transform.Find("Walking Slime Particle");
+                ParticleSystem slimePs = slimeTf != null ? slimeTf.GetComponent<ParticleSystem>() : null;
+
+                Transform dashTf = transform.Find("Dash Particle");
+                if (dashTf == null) dashTf = transform.Find("Dash Slime VFX");
+                ParticleSystem dashPs = dashTf != null ? dashTf.GetComponent<ParticleSystem>() : null;
+
+                Transform dashTrailTf = transform.Find("DashTrail Slime VFX");
+                if (dashTrailTf == null) dashTrailTf = transform.Find("DashTrail");
+                ParticleSystem dashTrailPs = dashTrailTf != null ? dashTrailTf.GetComponent<ParticleSystem>() : null;
+
+                Transform wjTf = transform.Find("WallJump Particle");
+                if (wjTf == null) wjTf = transform.Find("Wall Jump Particle");
+                if (wjTf == null) wjTf = transform.Find("WallJump VFX");
+                ParticleSystem wjPs = wjTf != null ? wjTf.GetComponent<ParticleSystem>() : null;
+
+                Transform deadTf = transform.Find("Dead Particle");
+                if (deadTf == null) deadTf = transform.Find("Death Particle");
+                ParticleSystem deadPs = deadTf != null ? deadTf.GetComponent<ParticleSystem>() : null;
+
+                Transform wsTf = transform.Find("WallSlide Particle");
+                if (wsTf == null) wsTf = transform.Find("Wall Slide Particle");
+                if (wsTf == null) wsTf = transform.Find("WallSlide VFX");
+                ParticleSystem wsPs = wsTf != null ? wsTf.GetComponent<ParticleSystem>() : null;
+
                 var playerAnim = Ensure<PlayerAnimator2D>(gameObject);
-                playerAnim.BindReferences(ctrl, stress, respawn, rb, anim, sr, overlaySr);
+                playerAnim.BindReferences(ctrl, stress, respawn, rb, anim, sr, overlaySr, slimePs, dashPs, dashTrailPs, wjPs, deadPs, wsPs);
             }
             else
             {

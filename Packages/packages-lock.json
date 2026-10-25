@@ -28,16 +28,6 @@
       },
       "url": "https://package.openupm.com"
     },
-    "com.ivanmurzak.unity.mcp.particlesystem": {
-      "version": "1.2.34",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "com.ivanmurzak.unity.mcp": "0.93.3",
-        "com.unity.modules.particlesystem": "1.0.0"
-      },
-      "url": "https://package.openupm.com"
-    },
     "com.unity.2d.animation": {
       "version": "15.1.0",
       "depth": 0,
