@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 400000}
   - component: {fileID: 6100000}
   - component: {fileID: 11400000}
-  m_Layer: 0
+  m_Layer: 15
   m_Name: Trap
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -103,7 +103,7 @@ GameObject:
   m_Component:
   - component: {fileID: 400001}
   - component: {fileID: 21200001}
-  m_Layer: 0
+  m_Layer: 15
   m_Name: Visual
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -170,7 +170,7 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
+  m_SortingLayerID: 1006
   m_SortingLayer: 0
   m_SortingOrder: 8
   m_MaskInteraction: 0

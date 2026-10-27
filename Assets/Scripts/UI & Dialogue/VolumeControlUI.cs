@@ -108,14 +108,17 @@ public class VolumeControlUI : MonoBehaviour
     private void Update()
     {
         bool mPressed = false;
+#if ENABLE_INPUT_SYSTEM
         if (Keyboard.current != null && Keyboard.current[toggleKey].wasPressedThisFrame)
         {
             mPressed = true;
         }
-        else if (Input.GetKeyDown(KeyCode.M))
+#else
+        if (Input.GetKeyDown(KeyCode.M))
         {
             mPressed = true;
         }
+#endif
 
         if (mPressed)
         {

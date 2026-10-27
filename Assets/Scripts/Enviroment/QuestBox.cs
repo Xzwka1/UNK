@@ -33,7 +33,11 @@ public class QuestBox : MonoBehaviour
     {
         AutoLoadSpriteInEditor();
         spriteRenderer = GetComponentInChildren<SpriteRenderer>();
-        if (spriteRenderer == null) spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
+        if (spriteRenderer == null)
+        {
+            spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
+            spriteRenderer.sortingLayerName = "Interactables";
+        }
         if (questBoxSprite != null && spriteRenderer.sprite == null)
             spriteRenderer.sprite = questBoxSprite;
 
@@ -50,8 +54,13 @@ public class QuestBox : MonoBehaviour
     {
         AutoLoadSpriteInEditor();
         if (spriteRenderer == null) spriteRenderer = GetComponentInChildren<SpriteRenderer>();
-        if (!Application.isPlaying && spriteRenderer != null && spriteRenderer.sprite == null && questBoxSprite != null)
-            spriteRenderer.sprite = questBoxSprite;
+        if (!Application.isPlaying && spriteRenderer != null)
+        {
+            if (spriteRenderer.sprite == null && questBoxSprite != null)
+                spriteRenderer.sprite = questBoxSprite;
+            if (spriteRenderer.sortingLayerName == "Default")
+                spriteRenderer.sortingLayerName = "Interactables";
+        }
 
         var box = GetComponent<BoxCollider2D>();
         if (box != null) box.isTrigger = true;

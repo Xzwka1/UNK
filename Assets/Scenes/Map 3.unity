@@ -470,7 +470,7 @@ MonoBehaviour:
     m_Bits: 1
   m_VolumeTrigger: {fileID: 0}
   m_VolumeFrameworkUpdateModeOption: 2
-  m_RenderPostProcessing: 0
+  m_RenderPostProcessing: 1
   m_Antialiasing: 0
   m_AntialiasingQuality: 2
   m_StopNaN: 0
@@ -970,7 +970,7 @@ GameObject:
   m_Component:
   - component: {fileID: 371972738}
   - component: {fileID: 371972737}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Grid
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2296,7 +2296,7 @@ GameObject:
   - component: {fileID: 792258948}
   - component: {fileID: 792258947}
   - component: {fileID: 792258946}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Tilemap
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2401,7 +2401,7 @@ TilemapRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
+  m_SortingLayerID: 1003
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
@@ -5750,7 +5750,7 @@ GameObject:
   - component: {fileID: 1008257148}
   - component: {fileID: 1008257147}
   - component: {fileID: 1008257146}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Map_Ice_0
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5848,7 +5848,7 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
+  m_SortingLayerID: 1001
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
@@ -6037,7 +6037,7 @@ GameObject:
   - component: {fileID: 1103147105}
   - component: {fileID: 1103147104}
   m_Layer: 0
-  m_Name: f64520bcde5e0fef_0
+  m_Name: NPCHouse
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -6088,7 +6088,7 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
+  m_SortingLayerID: 1002
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
@@ -7453,7 +7453,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1727764646}
   - component: {fileID: 1727764645}
-  m_Layer: 0
+  m_Layer: 15
   m_Name: CameraBounds
   m_TagString: Untagged
   m_Icon: {fileID: 0}

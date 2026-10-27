@@ -68,7 +68,11 @@ public class BreakingBarrier : MonoBehaviour, IBreakable
         lastValidatedTheme = barrierTheme;
         AutoLoadSpritesInEditor(true);
         colliders = GetComponents<Collider2D>();
-        if (spriteRenderer == null) spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
+        if (spriteRenderer == null)
+        {
+            spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
+            spriteRenderer.sortingLayerName = "Ground";
+        }
         if (normalSprite != null && spriteRenderer.sprite == null)
             spriteRenderer.sprite = normalSprite;
 
@@ -86,8 +90,13 @@ public class BreakingBarrier : MonoBehaviour, IBreakable
         lastValidatedTheme = barrierTheme;
 
         AutoLoadSpritesInEditor(themeChanged);
-        if (!Application.isPlaying && spriteRenderer != null && (spriteRenderer.sprite == null || themeChanged) && normalSprite != null)
-            spriteRenderer.sprite = normalSprite;
+        if (!Application.isPlaying && spriteRenderer != null)
+        {
+            if ((spriteRenderer.sprite == null || themeChanged) && normalSprite != null)
+                spriteRenderer.sprite = normalSprite;
+            if (spriteRenderer.sortingLayerName == "Default")
+                spriteRenderer.sortingLayerName = "Ground";
+        }
     }
 
     private void DetectThemeFromCurrentSprite()

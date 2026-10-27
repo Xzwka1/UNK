@@ -248,6 +248,7 @@ public class Level1GauntletGenerator : MonoBehaviour
         var sr = go.AddComponent<SpriteRenderer>();
         sr.sprite = GetSquareSprite();
         sr.color = ColorFor(kind);
+        sr.sortingLayerName = kind == BlockKind.Spikes || kind == BlockKind.Goal ? "Interactables" : "Ground";
         sr.sortingOrder = kind == BlockKind.Spikes || kind == BlockKind.Goal ? 1 : 0;
 
         var bc = go.AddComponent<BoxCollider2D>(); // unit sprite x scale = exact rectangle

@@ -84,7 +84,7 @@ public class TeleportTrigger2D : MonoBehaviour
 
         hasTeleported = true;
         Debug.Log($"[TeleportTrigger2D] All {collected}/{requiredBoxes} QuestBoxes collected! Teleporting to next map...");
-        SoundManager.PlayStageClear();
+        SoundManager.PlayItemPickup();
         OnTeleportSuccess?.Invoke();
 
         LoadNextMap();

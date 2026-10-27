@@ -321,7 +321,7 @@ GameObject:
   - component: {fileID: 1255276377295751475}
   - component: {fileID: 1476309045782675413}
   - component: {fileID: 1201358714667886805}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: WallSlide Particle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5111,8 +5111,8 @@ ParticleSystemRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
+  m_SortingLayerID: 1005
+  m_SortingLayer: 5
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_RenderMode: 0
@@ -5192,7 +5192,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1676938616488747905}
   - component: {fileID: 4186308934665241377}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: DashTrail Slime VFX
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5259,8 +5259,8 @@ TrailRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 1002
-  m_SortingLayer: 2
+  m_SortingLayerID: 1005
+  m_SortingLayer: 5
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Time: 0.2
@@ -5294,15 +5294,15 @@ TrailRenderer:
       m_RotationOrder: 4
     colorGradient:
       serializedVersion: 2
-      key0: {r: 0.9811321, g: 0.72659314, b: 0.95453846, a: 1}
-      key1: {r: 1, g: 1, b: 1, a: 0}
+      key0: {r: 0.96, g: 0.35, b: 0.78, a: 1}
+      key1: {r: 0.88, g: 0.22, b: 0.65, a: 1}
       key2: {r: 0, g: 0, b: 0, a: 0}
       key3: {r: 0, g: 0, b: 0, a: 0}
       key4: {r: 0, g: 0, b: 0, a: 0}
       key5: {r: 0, g: 0, b: 0, a: 0}
       key6: {r: 0, g: 0, b: 0, a: 0}
       key7: {r: 0, g: 0, b: 0, a: 0}
-      ctime0: 20046
+      ctime0: 0
       ctime1: 65535
       ctime2: 0
       ctime3: 0
@@ -5310,8 +5310,8 @@ TrailRenderer:
       ctime5: 0
       ctime6: 0
       ctime7: 0
-      atime0: 37201
-      atime1: 65535
+      atime0: 0
+      atime1: 36044
       atime2: 65535
       atime3: 0
       atime4: 0
@@ -5319,9 +5319,9 @@ TrailRenderer:
       atime6: 0
       atime7: 0
       m_Mode: 0
-      m_ColorSpace: 0
+      m_ColorSpace: -1
       m_NumColorKeys: 2
-      m_NumAlphaKeys: 2
+      m_NumAlphaKeys: 3
     numCornerVertices: 0
     numCapVertices: 3
     alignment: 0
@@ -5344,7 +5344,7 @@ GameObject:
   - component: {fileID: 1308545031536734791}
   - component: {fileID: 3448175744645763473}
   - component: {fileID: 6580150799045819950}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Dash Slime VFX
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -10152,8 +10152,8 @@ ParticleSystemRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 1007
-  m_SortingLayer: 7
+  m_SortingLayerID: 1005
+  m_SortingLayer: 5
   m_SortingOrder: 10
   m_MaskInteraction: 0
   m_RenderMode: 0
@@ -10198,7 +10198,7 @@ GameObject:
   - component: {fileID: 8972120246832358377}
   - component: {fileID: 8895631655794615699}
   - component: {fileID: 5098114032155920297}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Hurtbox
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -10289,7 +10289,7 @@ GameObject:
   - component: {fileID: 6601600587392182228}
   - component: {fileID: 7231147167125366510}
   - component: {fileID: 8104409351306925889}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Walking Slime Particle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -15098,8 +15098,8 @@ ParticleSystemRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 1007
-  m_SortingLayer: 7
+  m_SortingLayerID: 1005
+  m_SortingLayer: 5
   m_SortingOrder: 5
   m_MaskInteraction: 0
   m_RenderMode: 0
@@ -15144,7 +15144,7 @@ GameObject:
   - component: {fileID: 6939471105529211034}
   - component: {fileID: 4876618108378977424}
   - component: {fileID: 597056897145333438}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Dead Particle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -19992,8 +19992,8 @@ ParticleSystemRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 1002
-  m_SortingLayer: 2
+  m_SortingLayerID: 1005
+  m_SortingLayer: 5
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_RenderMode: 1
@@ -20038,7 +20038,7 @@ GameObject:
   - component: {fileID: 5704775794591404964}
   - component: {fileID: 6862067947667956407}
   - component: {fileID: 1806644727710617211}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Visual
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -20153,7 +20153,7 @@ GameObject:
   - component: {fileID: 7974706913056916048}
   - component: {fileID: 1924544376877990373}
   - component: {fileID: 3611612720487795763}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: WallJump Particle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -25001,8 +25001,8 @@ ParticleSystemRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 1002
-  m_SortingLayer: 2
+  m_SortingLayerID: 1005
+  m_SortingLayer: 5
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_RenderMode: 0

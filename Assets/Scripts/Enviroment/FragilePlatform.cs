@@ -137,7 +137,11 @@ public class FragilePlatform : MonoBehaviour
         lastValidatedTheme = platformTheme;
         AutoLoadSpritesInEditor(true);
         colliders = GetComponents<Collider2D>();
-        if (spriteRenderer == null) spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
+        if (spriteRenderer == null)
+        {
+            spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
+            spriteRenderer.sortingLayerName = "Ground";
+        }
         if (normalSprite != null && spriteRenderer.sprite == null)
             spriteRenderer.sprite = normalSprite;
 
@@ -155,8 +159,13 @@ public class FragilePlatform : MonoBehaviour
         lastValidatedTheme = platformTheme;
 
         AutoLoadSpritesInEditor(themeChanged);
-        if (!Application.isPlaying && spriteRenderer != null && (spriteRenderer.sprite == null || themeChanged) && normalSprite != null)
-            spriteRenderer.sprite = normalSprite;
+        if (!Application.isPlaying && spriteRenderer != null)
+        {
+            if ((spriteRenderer.sprite == null || themeChanged) && normalSprite != null)
+                spriteRenderer.sprite = normalSprite;
+            if (spriteRenderer.sortingLayerName == "Default")
+                spriteRenderer.sortingLayerName = "Ground";
+        }
     }
 
     private void DetectThemeFromCurrentSprite()

@@ -148,6 +148,7 @@ public class PlayerSetup : MonoBehaviour
         {
             Transform vis = FindOrCreateChild(VisualName);
             var sr = Ensure<SpriteRenderer>(vis.gameObject);
+            sr.sortingLayerName = "Entities";
             sr.sortingOrder = 10;
 
             bool hasCharacterArt = animatorController != null || defaultIdleSprite != null;

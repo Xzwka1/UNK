@@ -173,13 +173,15 @@ public class SoundManager : MonoBehaviour
     {
         EnsureAudioListener();
         VolumeControlUI.EnsureInstance();
+
+        if (loopSource != null && loopSource.isPlaying) loopSource.Stop();
+
         if (scene.name == "MainMenu")
         {
             PlayMainMenuMusic();
         }
         else if (scene.name == "EndScreen")
         {
-            StopBGM();
             PlayStageClear();
         }
         else
@@ -441,7 +443,11 @@ public class SoundManager : MonoBehaviour
         AudioClip clip = Instance.buttonClickClip != null ? Instance.buttonClickClip : Instance.respawnClip;
         Instance.PlaySound(clip, 1f, true);
     }
-    public static void PlayStageClear() => Instance?.PlaySound(Instance.stageClearClip, 1f, false);
+    public static void PlayStageClear()
+    {
+        if (Instance == null || Instance.stageClearClip == null) return;
+        Instance.PlayBGM(Instance.stageClearClip, 0.85f);
+    }
     public static void PlayMainMenuMusic()
     {
         if (Instance != null && Instance.mainMenuBGM != null)

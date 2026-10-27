@@ -149,6 +149,7 @@ public class GreyboxLevelGenerator : MonoBehaviour
         var sr = go.AddComponent<SpriteRenderer>();
         sr.sprite = GreyboxSprites.Square;
         sr.color = color;
+        sr.sortingLayerName = "Ground";
 
         var bc = go.AddComponent<BoxCollider2D>(); // unit sprite + scale = exact rectangle size
         bc.size = Vector2.one;

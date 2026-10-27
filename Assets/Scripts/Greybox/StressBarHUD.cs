@@ -15,6 +15,7 @@ public class StressBarHUD : MonoBehaviour
     [Tooltip("Offset of the image centre from the player's pivot.")]
     [SerializeField] private Vector2 offset = new Vector2(0f, 1.6f);
     [SerializeField] private int sortingOrder = 20;
+    [SerializeField] private string sortingLayerName = "UI";
 
     [Header("Art calibration (fractions of the image height, from the bottom)")]
     [Tooltip("Where the 0% equilibrium band sits.")]
@@ -63,13 +64,29 @@ public class StressBarHUD : MonoBehaviour
         return whiteSprite;
     }
 
+    private static Material unlitMaterial;
+    private static Material GetUnlitMaterial()
+    {
+        if (unlitMaterial != null) return unlitMaterial;
+        Shader s = Shader.Find("Universal Render Pipeline/2D/Sprite-Unlit-Default");
+        if (s == null) s = Shader.Find("Sprites/Default");
+        if (s != null) unlitMaterial = new Material(s);
+        return unlitMaterial;
+    }
+
     private SpriteRenderer MakeSprite(string name, Sprite sprite, int order)
     {
         var go = new GameObject(name);
         go.transform.SetParent(rig, false);
         var sr = go.AddComponent<SpriteRenderer>();
         sr.sprite = sprite;
+        if (!string.IsNullOrEmpty(sortingLayerName))
+            sr.sortingLayerName = sortingLayerName;
         sr.sortingOrder = order;
+
+        Material mat = GetUnlitMaterial();
+        if (mat != null) sr.material = mat;
+
         if (sprite != null)
         {
             // Normalise: image becomes 'size' units wide and its centre sits on the root.
@@ -102,6 +119,12 @@ public class StressBarHUD : MonoBehaviour
         mask = mgo.AddComponent<SpriteMask>();
         mask.sprite = White();
         mask.isCustomRangeActive = true;
+        if (!string.IsNullOrEmpty(sortingLayerName))
+        {
+            int sLayerId = SortingLayer.NameToID(sortingLayerName);
+            mask.frontSortingLayerID = sLayerId;
+            mask.backSortingLayerID = sLayerId;
+        }
         mask.frontSortingOrder = sortingOrder + 1;
         mask.backSortingOrder = sortingOrder;
 

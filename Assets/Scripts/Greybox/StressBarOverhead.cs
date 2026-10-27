@@ -82,6 +82,8 @@ public class StressBarOverhead : MonoBehaviour
         PlaceSignedTick(tickNeg80.transform, -stress.CriticalThreshold);
     }
 
+    [SerializeField] private string sortingLayerName = "UI";
+
     private SpriteRenderer MakeRect(string objName, Sprite sprite, Color color, int order)
     {
         var go = new GameObject(objName);
@@ -89,7 +91,14 @@ public class StressBarOverhead : MonoBehaviour
         var sr = go.AddComponent<SpriteRenderer>();
         sr.sprite = sprite;
         sr.color = color;
+        if (!string.IsNullOrEmpty(sortingLayerName))
+            sr.sortingLayerName = sortingLayerName;
         sr.sortingOrder = order;
+
+        Shader s = Shader.Find("Universal Render Pipeline/2D/Sprite-Unlit-Default");
+        if (s == null) s = Shader.Find("Sprites/Default");
+        if (s != null) sr.material = new Material(s);
+
         return sr;
     }
 
