@@ -406,6 +406,7 @@ MonoBehaviour:
   minBounds: {x: -20, y: -10}
   maxBounds: {x: 20, y: 10}
   autoBoundsFromScene: 1
+  boundsEdgeInset: 0.08
   lockAspectRatio: 1
   aspectRatio: {x: 16, y: 9}
 --- !u!114 &137384459

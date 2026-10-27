@@ -10,7 +10,8 @@ using UnityEngine;
 ///   3. Room bounds - the desired camera centre is confined so the VIEW never leaves the room rectangle.
 ///                    A room smaller than the view on an axis becomes a static room on that axis (camera centred).
 ///   4. Damping     - Mathf.SmoothDamp towards the desired position (separate X / Y smooth times).
-///   5. Shake       - the offset from CameraEffects (if present) is added on top, never fed back into the follow logic.
+///   5. Shake       - the offset from CameraEffects (if present) is added on top and clamped to the room bounds
+///                    so screen shake near map edges never reveals outside the background art.
 ///
 /// Setup: add this script to the Main Camera (it auto-adds a Camera requirement), drag the Player into 'Target'
 /// (or leave it empty and the first PlayerController2D in the scene is used). Set the player's Rigidbody2D
@@ -48,15 +49,15 @@ public class CameraController2D : MonoBehaviour
     [SerializeField, Min(0f)] private float lookaheadDirectionDelay = 0.1f;
 
     [Header("Room bounds (Confine Camera Bounds)")]
-    [SerializeField] private bool confineToBounds = false;
-    [Tooltip("Optional. If assigned, its world bounds are the room (works with a trigger BoxCollider2D drawn over the room). " +
-             "Otherwise the Min / Max below are used.")]
+    [SerializeField] private bool confineToBounds = true;
+    [Tooltip("Optional. If assigned and autoBoundsFromScene is false, its world bounds are the room.")]
     [SerializeField] private Collider2D roomBoundsCollider;
     [SerializeField] private Vector2 minBounds = new Vector2(-20f, -10f);
     [SerializeField] private Vector2 maxBounds = new Vector2(20f, 10f);
-    [Tooltip("Build the room automatically from every Sprite / Tilemap renderer in the scene (the player and its children are ignored), " +
-             "so the camera never shows empty space beyond the edge of the map art. Overrides the manual bounds.")]
+    [Tooltip("Automatically locks camera bounds to the Background SpriteRenderer (ignoring stray tiles or portals outside the BG edge) so the camera never shows past the map background.")]
     [SerializeField] private bool autoBoundsFromScene = true;
+    [Tooltip("Small inward margin (world units) from the background edge so sub-pixel seams or shakes never show outside the BG.")]
+    [SerializeField, Min(0f)] private float boundsEdgeInset = 0.08f;
 
     [Header("Aspect Ratio (16:9 / 1920x1080)")]
     [Tooltip("Letterbox / pillarbox the view to a fixed aspect ratio so every window size shows the same area.")]
@@ -145,13 +146,13 @@ public class CameraController2D : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (lockAspectRatio) ApplyAspect(false);
+
         if (!initialized)
         {
             initialized = TryInitialize(true);
             if (!initialized) return;
         }
-
-        if (lockAspectRatio) ApplyAspect(false);
 
         float dt = Time.deltaTime;
 
@@ -166,6 +167,7 @@ public class CameraController2D : MonoBehaviour
 
         logicalPos.x = Mathf.SmoothDamp(logicalPos.x, desired.x, ref velX, smoothTimeX, Mathf.Infinity, dt);
         logicalPos.y = Mathf.SmoothDamp(logicalPos.y, desired.y, ref velY, smoothTimeY, Mathf.Infinity, dt);
+        logicalPos = ClampToRoom(logicalPos);
 
         ApplyPosition();
     }
@@ -277,10 +279,70 @@ public class CameraController2D : MonoBehaviour
     }
 
     // ------------------------------------------------------------------ Room bounds
-    /// <summary>Union of every visible map renderer (ignoring the player hierarchy) becomes the camera room.</summary>
-    private void BuildAutoBounds()
+    /// <summary>
+    /// Automatically locks the camera bounds to the map's Background SpriteRenderer
+    /// (ignoring Tilemap edges, portals, or props that stick out past the background image).
+    /// Falls back to roomBoundsCollider or all scene renderers if no large background sprite exists.
+    /// </summary>
+    [ContextMenu("Recalculate Bounds From Background")]
+    public void BuildAutoBounds()
     {
-        bool has = false;
+        // 1. Prefer the full-map Background SpriteRenderer(s) (area >= 400 sq units, e.g. 77x43 or 43x76)
+        //    so tiles or portals sticking out beyond the BG art never cause the camera to show empty space.
+        bool hasBg = false;
+        Bounds bgBounds = default;
+
+        SpriteRenderer[] spriteRenderers = FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        foreach (SpriteRenderer sr in spriteRenderers)
+        {
+            if (sr.sprite == null || !sr.enabled) continue;
+            if (target != null && sr.transform.IsChildOf(target)) continue;
+            if (sr.transform.IsChildOf(transform)) continue;
+
+            Bounds b = sr.bounds;
+            float area = b.size.x * b.size.y;
+            if (b.size.x >= 25f && b.size.y >= 15f && area >= 400f)
+            {
+                if (!hasBg)
+                {
+                    bgBounds = b;
+                    hasBg = true;
+                }
+                else
+                {
+                    // If multiple full-map BG layers overlap (e.g. Map 4), intersect them so no layer's edge is crossed.
+                    float interMinX = Mathf.Max(bgBounds.min.x, b.min.x);
+                    float interMinY = Mathf.Max(bgBounds.min.y, b.min.y);
+                    float interMaxX = Mathf.Min(bgBounds.max.x, b.max.x);
+                    float interMaxY = Mathf.Min(bgBounds.max.y, b.max.y);
+
+                    if (interMaxX - interMinX >= 25f && interMaxY - interMinY >= 15f)
+                    {
+                        bgBounds.SetMinMax(new Vector3(interMinX, interMinY, 0f), new Vector3(interMaxX, interMaxY, 0f));
+                    }
+                    else if (area > bgBounds.size.x * bgBounds.size.y)
+                    {
+                        bgBounds = b;
+                    }
+                }
+            }
+        }
+
+        if (hasBg)
+        {
+            ApplyDetectedBounds(bgBounds);
+            return;
+        }
+
+        // 2. If an explicit roomBoundsCollider is assigned and no large BG sprite exists, keep using it.
+        if (roomBoundsCollider != null)
+        {
+            confineToBounds = true;
+            return;
+        }
+
+        // 3. Fallback (e.g. Greybox scenes without a large BG sprite): encapsulate all visible map renderers.
+        bool hasAny = false;
         Bounds total = default;
         foreach (Renderer r in FindObjectsByType<Renderer>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
         {
@@ -289,16 +351,25 @@ public class CameraController2D : MonoBehaviour
             if (r.transform.IsChildOf(transform)) continue;
             Bounds b = r.bounds;
             if (b.size.x <= 0f || b.size.y <= 0f) continue;
-            if (!has) { total = b; has = true; }
+            if (!hasAny) { total = b; hasAny = true; }
             else total.Encapsulate(b);
         }
 
-        if (!has) return;
+        if (!hasAny) return;
+        ApplyDetectedBounds(total);
+    }
+
+    private void ApplyDetectedBounds(Bounds b)
+    {
+        Vector2 min = (Vector2)b.min + new Vector2(boundsEdgeInset, boundsEdgeInset);
+        Vector2 max = (Vector2)b.max - new Vector2(boundsEdgeInset, boundsEdgeInset);
+
         roomBoundsCollider = null;
-        minBounds = total.min;
-        maxBounds = total.max;
+        minBounds = min;
+        maxBounds = max;
         confineToBounds = true;
     }
+
     private bool TryGetRoom(out Rect room)
     {
         room = default;
@@ -307,7 +378,11 @@ public class CameraController2D : MonoBehaviour
         if (roomBoundsCollider != null)
         {
             Bounds b = roomBoundsCollider.bounds;
-            room = Rect.MinMaxRect(b.min.x, b.min.y, b.max.x, b.max.y);
+            room = Rect.MinMaxRect(
+                b.min.x + boundsEdgeInset,
+                b.min.y + boundsEdgeInset,
+                b.max.x - boundsEdgeInset,
+                b.max.y - boundsEdgeInset);
             return true;
         }
 
@@ -321,7 +396,10 @@ public class CameraController2D : MonoBehaviour
         if (!TryGetRoom(out Rect room)) return p;
 
         float halfH = cam.orthographicSize;
-        float halfW = halfH * cam.aspect;
+        float effectiveAspect = (lockAspectRatio && aspectRatio.y > 0f)
+            ? (aspectRatio.x / aspectRatio.y)
+            : cam.aspect;
+        float halfW = halfH * effectiveAspect;
 
         p.x = room.width <= halfW * 2f ? room.center.x : Mathf.Clamp(p.x, room.xMin + halfW, room.xMax - halfW);
         p.y = room.height <= halfH * 2f ? room.center.y : Mathf.Clamp(p.y, room.yMin + halfH, room.yMax - halfH);
@@ -332,7 +410,9 @@ public class CameraController2D : MonoBehaviour
     private void ApplyPosition()
     {
         Vector2 shake = effects != null ? effects.CurrentOffset : Vector2.zero;
-        transform.position = new Vector3(logicalPos.x + shake.x, logicalPos.y + shake.y, z);
+        // Clamp final position (including camera shake) so shake near map borders never peeks outside the BG art.
+        Vector2 finalPos = ClampToRoom(logicalPos + shake);
+        transform.position = new Vector3(finalPos.x, finalPos.y, z);
     }
 
     // ------------------------------------------------------------------ Respawn hookup
@@ -354,8 +434,6 @@ public class CameraController2D : MonoBehaviour
     // ------------------------------------------------------------------ Gizmos
     private void OnDrawGizmosSelected()
     {
-        Camera c = cam != null ? cam : GetComponent<Camera>();
-
         // Deadzone box (yellow) around the focus point.
         Vector2 center = Application.isPlaying && initialized ? focus : (Vector2)transform.position;
         Gizmos.color = Color.yellow;

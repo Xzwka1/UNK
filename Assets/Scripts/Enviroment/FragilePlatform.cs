@@ -26,6 +26,7 @@ using UnityEditor;
 public class FragilePlatform : MonoBehaviour
 {
     public enum PlatformState { Normal, Cracking, Destroyed, Reforming }
+    public enum PlatformTheme { GrassDirt_Green, CaveDirt_Red, SnowIce_Blue, Custom }
 
     // ------------------------------------------------------------------ Inspector: timing
     [Header("Timing (seconds)")]
@@ -73,6 +74,8 @@ public class FragilePlatform : MonoBehaviour
 
     // ------------------------------------------------------------------ Inspector: visuals (5-Stage Sprites)
     [Header("Visuals - 5-Stage Sprites (auto-loaded from Assets/Tileset)")]
+    [Tooltip("Visual theme preset (GrassDirt_Green = IMG_0458..0460, CaveDirt_Red = IMG_0542..0547, SnowIce_Blue = IMG_0550..0554).")]
+    [SerializeField] private PlatformTheme platformTheme = PlatformTheme.GrassDirt_Green;
     [Tooltip("Stage 1 (Normal): Intact platform (IMG_0458).")]
     [SerializeField] private Sprite normalSprite;
     [Tooltip("Stage 2A (Cracking 0%..50%): Cracked stones under grass (IMG_0459).")]
@@ -83,6 +86,7 @@ public class FragilePlatform : MonoBehaviour
     [SerializeField] private Sprite reformingEarlySprite;
     [Tooltip("Stage 4B (Reforming 50%..100%): Grass and stones reassembling (f54d9acec6b489a3).")]
     [SerializeField] private Sprite reformingSprite;
+    [SerializeField, HideInInspector] private PlatformTheme lastValidatedTheme = (PlatformTheme)(-1);
 
     [Header("Visuals - placeholders / tuning")]
     [Tooltip("Multiplies the sprite colour while cracking ONLY when no crackingSprite is assigned.")]
@@ -128,9 +132,11 @@ public class FragilePlatform : MonoBehaviour
     // ------------------------------------------------------------------ Lifecycle & Editor Auto-Wiring
     private void Reset()
     {
-        AutoLoadSpritesInEditor();
+        if (spriteRenderer == null) spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        DetectThemeFromCurrentSprite();
+        lastValidatedTheme = platformTheme;
+        AutoLoadSpritesInEditor(true);
         colliders = GetComponents<Collider2D>();
-        spriteRenderer = GetComponentInChildren<SpriteRenderer>();
         if (spriteRenderer == null) spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
         if (normalSprite != null && spriteRenderer.sprite == null)
             spriteRenderer.sprite = normalSprite;
@@ -142,26 +148,69 @@ public class FragilePlatform : MonoBehaviour
 
     private void OnValidate()
     {
-        AutoLoadSpritesInEditor();
         if (colliders == null || colliders.Length == 0) colliders = GetComponents<Collider2D>();
         if (spriteRenderer == null) spriteRenderer = GetComponentInChildren<SpriteRenderer>();
-        if ( !Application.isPlaying && spriteRenderer != null && spriteRenderer.sprite == null && normalSprite != null)
+
+        bool themeChanged = platformTheme != lastValidatedTheme && lastValidatedTheme != (PlatformTheme)(-1);
+        lastValidatedTheme = platformTheme;
+
+        AutoLoadSpritesInEditor(themeChanged);
+        if (!Application.isPlaying && spriteRenderer != null && (spriteRenderer.sprite == null || themeChanged) && normalSprite != null)
             spriteRenderer.sprite = normalSprite;
     }
 
-    private void AutoLoadSpritesInEditor()
+    private void DetectThemeFromCurrentSprite()
+    {
+        if (spriteRenderer == null || spriteRenderer.sprite == null) return;
+        string n = spriteRenderer.sprite.name;
+        if (n.StartsWith("IMG_054")) platformTheme = PlatformTheme.CaveDirt_Red;
+        else if (n.StartsWith("IMG_055")) platformTheme = PlatformTheme.SnowIce_Blue;
+        else if (n.StartsWith("IMG_045")) platformTheme = PlatformTheme.GrassDirt_Green;
+    }
+
+    private void AutoLoadSpritesInEditor(bool forceOverwrite = false)
     {
 #if UNITY_EDITOR
-        if (normalSprite == null)
-            normalSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/IMG_0458.png");
-        if (crackingSprite == null)
-            crackingSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/IMG_0459.png");
-        if (breakingSprite == null)
-            breakingSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/IMG_0460.png");
-        if (reformingEarlySprite == null)
-            reformingEarlySprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/23d55c94730f5902.png");
-        if (reformingSprite == null)
-            reformingSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/f54d9acec6b489a3.png");
+        if (platformTheme == PlatformTheme.Custom) return;
+
+        string pNormal, pCrack, pBreak, pReformEarly, pReform;
+        switch (platformTheme)
+        {
+            case PlatformTheme.CaveDirt_Red:
+                pNormal      = "Assets/Tileset/IMG_0542.png";
+                pCrack       = "Assets/Tileset/IMG_0543.png";
+                pBreak       = "Assets/Tileset/IMG_0544.png";
+                pReformEarly = "Assets/Tileset/IMG_0546.png";
+                pReform      = "Assets/Tileset/IMG_0547.png";
+                break;
+
+            case PlatformTheme.SnowIce_Blue:
+                pNormal      = "Assets/Tileset/IMG_0550.png";
+                pCrack       = "Assets/Tileset/IMG_0551.png";
+                pBreak       = "Assets/Tileset/IMG_0552.png";
+                pReformEarly = "Assets/Tileset/IMG_0553.png";
+                pReform      = "Assets/Tileset/IMG_0554.png";
+                break;
+
+            default: // GrassDirt_Green
+                pNormal      = "Assets/Tileset/IMG_0458.png";
+                pCrack       = "Assets/Tileset/IMG_0459.png";
+                pBreak       = "Assets/Tileset/IMG_0460.png";
+                pReformEarly = "Assets/Tileset/23d55c94730f5902.png";
+                pReform      = "Assets/Tileset/f54d9acec6b489a3.png";
+                break;
+        }
+
+        if (forceOverwrite || normalSprite == null)
+            normalSprite = AssetDatabase.LoadAssetAtPath<Sprite>(pNormal);
+        if (forceOverwrite || crackingSprite == null)
+            crackingSprite = AssetDatabase.LoadAssetAtPath<Sprite>(pCrack);
+        if (forceOverwrite || breakingSprite == null)
+            breakingSprite = AssetDatabase.LoadAssetAtPath<Sprite>(pBreak);
+        if (forceOverwrite || reformingEarlySprite == null)
+            reformingEarlySprite = AssetDatabase.LoadAssetAtPath<Sprite>(pReformEarly);
+        if (forceOverwrite || reformingSprite == null)
+            reformingSprite = AssetDatabase.LoadAssetAtPath<Sprite>(pReform);
 #endif
     }
 

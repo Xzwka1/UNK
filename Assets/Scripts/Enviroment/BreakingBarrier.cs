@@ -26,11 +26,16 @@ using UnityEditor;
 [RequireComponent(typeof(BoxCollider2D))]
 public class BreakingBarrier : MonoBehaviour, IBreakable
 {
+    public enum BarrierTheme { GrassDirt_Green, CaveDirt_Brown, SnowIce_Blue, Custom }
+
     [Header("Visuals - 2-Stage Sprites (auto-loaded from Assets/Tileset)")]
+    [Tooltip("Visual theme preset (GrassDirt_Green = IMG_0491/0492, CaveDirt_Brown = IMG_0548/0549, SnowIce_Blue = IMG_0555/0556).")]
+    [SerializeField] private BarrierTheme barrierTheme = BarrierTheme.GrassDirt_Green;
     [Tooltip("Stage 1 (Intact): solid barrier wall (IMG_0491).")]
     [SerializeField] private Sprite normalSprite;
     [Tooltip("Stage 2 (Broken): smashed barrier wall (IMG_0492).")]
     [SerializeField] private Sprite brokenSprite;
+    [SerializeField, HideInInspector] private BarrierTheme lastValidatedTheme = (BarrierTheme)(-1);
 
     [Header("References (auto-filled if empty)")]
     [SerializeField] private Collider2D[] colliders;
@@ -58,9 +63,11 @@ public class BreakingBarrier : MonoBehaviour, IBreakable
     // ------------------------------------------------------------------ Lifecycle & Editor Auto-Wiring
     private void Reset()
     {
-        AutoLoadSpritesInEditor();
+        if (spriteRenderer == null) spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        DetectThemeFromCurrentSprite();
+        lastValidatedTheme = barrierTheme;
+        AutoLoadSpritesInEditor(true);
         colliders = GetComponents<Collider2D>();
-        spriteRenderer = GetComponentInChildren<SpriteRenderer>();
         if (spriteRenderer == null) spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
         if (normalSprite != null && spriteRenderer.sprite == null)
             spriteRenderer.sprite = normalSprite;
@@ -72,20 +79,54 @@ public class BreakingBarrier : MonoBehaviour, IBreakable
 
     private void OnValidate()
     {
-        AutoLoadSpritesInEditor();
         if (colliders == null || colliders.Length == 0) colliders = GetComponents<Collider2D>();
         if (spriteRenderer == null) spriteRenderer = GetComponentInChildren<SpriteRenderer>();
-        if (!Application.isPlaying && spriteRenderer != null && spriteRenderer.sprite == null && normalSprite != null)
+
+        bool themeChanged = barrierTheme != lastValidatedTheme && lastValidatedTheme != (BarrierTheme)(-1);
+        lastValidatedTheme = barrierTheme;
+
+        AutoLoadSpritesInEditor(themeChanged);
+        if (!Application.isPlaying && spriteRenderer != null && (spriteRenderer.sprite == null || themeChanged) && normalSprite != null)
             spriteRenderer.sprite = normalSprite;
     }
 
-    private void AutoLoadSpritesInEditor()
+    private void DetectThemeFromCurrentSprite()
+    {
+        if (spriteRenderer == null || spriteRenderer.sprite == null) return;
+        string n = spriteRenderer.sprite.name;
+        if (n.StartsWith("IMG_0548") || n.StartsWith("IMG_0549")) barrierTheme = BarrierTheme.CaveDirt_Brown;
+        else if (n.StartsWith("IMG_0555") || n.StartsWith("IMG_0556")) barrierTheme = BarrierTheme.SnowIce_Blue;
+        else if (n.StartsWith("IMG_049")) barrierTheme = BarrierTheme.GrassDirt_Green;
+    }
+
+    private void AutoLoadSpritesInEditor(bool forceOverwrite = false)
     {
 #if UNITY_EDITOR
-        if (normalSprite == null)
-            normalSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/IMG_0491.png");
-        if (brokenSprite == null)
-            brokenSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Tileset/IMG_0492.png");
+        if (barrierTheme == BarrierTheme.Custom) return;
+
+        string pNormal, pBroken;
+        switch (barrierTheme)
+        {
+            case BarrierTheme.CaveDirt_Brown:
+                pNormal = "Assets/Tileset/IMG_0548.png";
+                pBroken = "Assets/Tileset/IMG_0549.png";
+                break;
+
+            case BarrierTheme.SnowIce_Blue:
+                pNormal = "Assets/Tileset/IMG_0555.png";
+                pBroken = "Assets/Tileset/IMG_0556.png";
+                break;
+
+            default: // GrassDirt_Green
+                pNormal = "Assets/Tileset/IMG_0491.png";
+                pBroken = "Assets/Tileset/IMG_0492.png";
+                break;
+        }
+
+        if (forceOverwrite || normalSprite == null)
+            normalSprite = AssetDatabase.LoadAssetAtPath<Sprite>(pNormal);
+        if (forceOverwrite || brokenSprite == null)
+            brokenSprite = AssetDatabase.LoadAssetAtPath<Sprite>(pBroken);
 #endif
     }
 

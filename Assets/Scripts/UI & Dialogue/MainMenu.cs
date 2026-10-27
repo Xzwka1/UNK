@@ -30,6 +30,7 @@ public class MainMenu : MonoBehaviour
         Time.timeScale = 1f;
         BuildEventSystem();
         BuildUI();
+        VolumeControlUI.EnsureInstance();
         SoundManager.PlayMainMenuMusic();
     }
 

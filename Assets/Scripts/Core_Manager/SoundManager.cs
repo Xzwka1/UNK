@@ -106,10 +106,18 @@ public class SoundManager : MonoBehaviour
     [SerializeField] private AudioClip stageClearClip;
     [SerializeField] private AudioClip gameplayBGM;
 
+    private const string MasterVolumePrefKey = "UNK_MasterVolume";
+
     public float MasterVolume
     {
         get => masterVolume;
-        set { masterVolume = Mathf.Clamp01(value); UpdateSourceVolumes(); }
+        set
+        {
+            masterVolume = Mathf.Clamp01(value);
+            PlayerPrefs.SetFloat(MasterVolumePrefKey, masterVolume);
+            PlayerPrefs.Save();
+            UpdateSourceVolumes();
+        }
     }
     public float SfxVolume
     {
@@ -133,6 +141,11 @@ public class SoundManager : MonoBehaviour
 
         instance = this;
         DontDestroyOnLoad(gameObject);
+
+        if (PlayerPrefs.HasKey(MasterVolumePrefKey))
+        {
+            masterVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(MasterVolumePrefKey, 1f));
+        }
 
         // If this scene instance has unassigned clips, copy from Resources/SoundManager prefab
         if (jumpClip == null)
@@ -159,6 +172,7 @@ public class SoundManager : MonoBehaviour
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         EnsureAudioListener();
+        VolumeControlUI.EnsureInstance();
         if (scene.name == "MainMenu")
         {
             PlayMainMenuMusic();
@@ -185,7 +199,7 @@ public class SoundManager : MonoBehaviour
     public void EnsureAudioListener()
     {
         AudioListener.pause = false;
-        if (AudioListener.volume <= 0.01f) AudioListener.volume = 1f;
+        AudioListener.volume = masterVolume;
 
         if (FindFirstObjectByType<AudioListener>() == null)
         {
