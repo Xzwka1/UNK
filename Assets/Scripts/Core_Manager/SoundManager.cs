@@ -177,6 +177,11 @@ public class SoundManager : MonoBehaviour
         {
             PlayMainMenuMusic();
         }
+        else if (scene.name == "EndScreen")
+        {
+            StopBGM();
+            PlayStageClear();
+        }
         else
         {
             PlayGameplayMusic();

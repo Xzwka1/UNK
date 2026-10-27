@@ -286,12 +286,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MainMenu
   firstSceneName: Map 1
+  menuButtonWidth: 318
+  startButtonPos: {x: -517, y: 190}
+  exitButtonPos: {x: -517, y: -20}
   backgroundTop: {r: 0.08, g: 0.09, b: 0.16, a: 1}
   backgroundBottom: {r: 0.02, g: 0.02, b: 0.05, a: 1}
-  tensileGlow: {r: 1, g: 0.45, b: 0.1, a: 0.22}
-  brittleGlow: {r: 0.45, g: 0.3, b: 1, a: 0.25}
-  buttonWidth: 480
-  buttonSpacing: 40
 --- !u!4 &305779956
 Transform:
   m_ObjectHideFlags: 0

@@ -5,8 +5,8 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// Main Menu. Drop this on an empty GameObject in a scene (the whole UI is built at runtime from
-/// Resources/UI/Start and Resources/UI/Exit). Mouse, keyboard and gamepad navigation are supported.
+/// Main Menu. Builds the Main Menu UI from Resources/UI/MainMenuScreen, Resources/UI/Start,
+/// and Resources/UI/Exit, with START and EXIT buttons positioned on the left notepad as designed.
 /// </summary>
 public class MainMenu : MonoBehaviour
 {
@@ -14,14 +14,14 @@ public class MainMenu : MonoBehaviour
     [Tooltip("Scene loaded by the Start button (must be in Build Settings).")]
     [SerializeField] private string firstSceneName = "Map 1";
 
+    [Header("Layout (1920x1080 Reference)")]
+    [SerializeField] private float menuButtonWidth = 318f;
+    [SerializeField] private Vector2 startButtonPos = new Vector2(-517f, 190f);
+    [SerializeField] private Vector2 exitButtonPos = new Vector2(-517f, -20f);
 
-    [Header("Look")]
+    [Header("Fallback Look (if MainMenuScreen sprite is missing)")]
     [SerializeField] private Color backgroundTop = new Color(0.08f, 0.09f, 0.16f);
     [SerializeField] private Color backgroundBottom = new Color(0.02f, 0.02f, 0.05f);
-    [SerializeField] private Color tensileGlow = new Color(1f, 0.45f, 0.1f, 0.22f);
-    [SerializeField] private Color brittleGlow = new Color(0.45f, 0.3f, 1f, 0.25f);
-    [SerializeField] private float buttonWidth = 480f;
-    [SerializeField] private float buttonSpacing = 40f;
 
     private Button startButton;
 
@@ -46,6 +46,8 @@ public class MainMenu : MonoBehaviour
     {
         var all = Resources.LoadAll<Sprite>(path);
         if (all != null && all.Length > 0) return all[0];
+        var single = Resources.Load<Sprite>(path);
+        if (single != null) return single;
         Debug.LogWarning("[MainMenu] Missing sprite: Resources/" + path);
         return null;
     }
@@ -61,33 +63,44 @@ public class MainMenu : MonoBehaviour
         scaler.matchWidthOrHeight = 0.5f;
         canvasGo.AddComponent<GraphicRaycaster>();
 
-        // Background (vertical gradient built from two stacked images + polarity glows).
+        // Background artwork (Resources/UI/MainMenuScreen)
         var bg = MakeImage("Background", canvasGo.transform, Color.white);
-        bg.sprite = GradientSprite(backgroundTop, backgroundBottom);
+        Sprite bgSprite = Load("UI/MainMenuScreen");
+        if (bgSprite != null)
+        {
+            bg.sprite = bgSprite;
+            bg.preserveAspect = false;
+        }
+        else
+        {
+            bg.sprite = GradientSprite(backgroundTop, backgroundBottom);
+        }
         Stretch(bg.rectTransform);
-        MakeGlow("GlowTensile", canvasGo.transform, tensileGlow, new Vector2(-520f, 280f), 900f);
-        MakeGlow("GlowBrittle", canvasGo.transform, brittleGlow, new Vector2(520f, -240f), 900f);
 
-        // Buttons
+        // START and EXIT Buttons positioned inside the notepad on the left side
         Sprite startSprite = Load("UI/Start");
         Sprite exitSprite = Load("UI/Exit");
-        float aspect = startSprite != null ? startSprite.rect.height / startSprite.rect.width : 0.48f;
-        float h = buttonWidth * aspect;
+        float aspect = startSprite != null ? startSprite.rect.height / startSprite.rect.width : 0.481f;
+        float w = menuButtonWidth > 10f ? menuButtonWidth : 318f;
+        float h = w * aspect;
 
-        startButton = MakeButton("StartButton", canvasGo.transform, startSprite, new Vector2(buttonWidth, h), new Vector2(0f, 20f));
+        startButton = MakeButton("StartButton", canvasGo.transform, startSprite, new Vector2(w, h), startButtonPos);
         startButton.onClick.AddListener(OnStart);
 
-        var exitButton = MakeButton("ExitButton", canvasGo.transform, exitSprite, new Vector2(buttonWidth, h),
-            new Vector2(0f, 20f - h - buttonSpacing));
+        var exitButton = MakeButton("ExitButton", canvasGo.transform, exitSprite, new Vector2(w, h), exitButtonPos);
         exitButton.onClick.AddListener(OnExit);
 
         // Explicit keyboard / gamepad navigation.
         var nav = new Navigation { mode = Navigation.Mode.Explicit, selectOnDown = exitButton, selectOnUp = exitButton };
         startButton.navigation = nav;
-        nav.selectOnDown = startButton; nav.selectOnUp = startButton;
+        nav.selectOnDown = startButton;
+        nav.selectOnUp = startButton;
         exitButton.navigation = nav;
 
-        EventSystem.current.SetSelectedGameObject(startButton.gameObject);
+        if (EventSystem.current != null)
+        {
+            EventSystem.current.SetSelectedGameObject(startButton.gameObject);
+        }
     }
 
     private void OnStart()
@@ -117,13 +130,6 @@ public class MainMenu : MonoBehaviour
         return img;
     }
 
-    private static void MakeGlow(string name, Transform parent, Color color, Vector2 pos, float diameter)
-    {
-        var img = MakeImage(name, parent, color);
-        img.sprite = RadialSprite();
-        SetRect(img.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(diameter, diameter), pos);
-    }
-
     private static Sprite GradientSprite(Color top, Color bottom)
     {
         const int n = 256;
@@ -131,40 +137,6 @@ public class MainMenu : MonoBehaviour
         for (int y = 0; y < n; y++) tex.SetPixel(0, y, Color.Lerp(bottom, top, y / (float)(n - 1)));
         tex.Apply();
         return Sprite.Create(tex, new Rect(0, 0, 1, n), new Vector2(0.5f, 0.5f), 100f);
-    }
-
-    private static Sprite radial;
-    private static Sprite RadialSprite()
-    {
-        if (radial != null) return radial;
-        const int n = 128;
-        var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
-        for (int y = 0; y < n; y++)
-            for (int x = 0; x < n; x++)
-            {
-                float d = Vector2.Distance(new Vector2(x, y), new Vector2(n * 0.5f, n * 0.5f)) / (n * 0.5f);
-                float a = Mathf.Clamp01(1f - d);
-                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a * a));
-            }
-        tex.Apply();
-        radial = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 100f);
-        return radial;
-    }
-
-    private static Text MakeText(string name, Transform parent, string content, int size, FontStyle style, Color color)
-    {
-        var go = new GameObject(name, typeof(RectTransform));
-        go.transform.SetParent(parent, false);
-        var t = go.AddComponent<Text>();
-        t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        t.text = content;
-        t.fontSize = size;
-        t.fontStyle = style;
-        t.color = color;
-        t.alignment = TextAnchor.MiddleCenter;
-        t.horizontalOverflow = HorizontalWrapMode.Overflow;
-        t.raycastTarget = false;
-        return t;
     }
 
     private static Button MakeButton(string name, Transform parent, Sprite sprite, Vector2 size, Vector2 pos)
